@@ -8,7 +8,7 @@ Namespace Analysis.Tokens
         Implements IToken, ICommandToken
 
         ' 条件式トークン
-        Private ReadOnly mToken As List(Of IToken)
+        Private ReadOnly mToken As List(Of TokenPoint)
 
         ''' <summary>格納されている値を取得する。</summary>
         ''' <returns>格納値。</returns>
@@ -28,7 +28,7 @@ Namespace Analysis.Tokens
 
         ''' <summary>条件式トークンリストを取得します。</summary>
         ''' <returns>条件式トークンリスト。</returns>
-        Public ReadOnly Property CommandTokens As List(Of IToken) Implements ICommandToken.CommandTokens
+        Public ReadOnly Property CommandTokens As List(Of TokenPoint) Implements ICommandToken.CommandTokens
             Get
                 Return Me.mToken
             End Get
@@ -36,7 +36,7 @@ Namespace Analysis.Tokens
 
         ''' <summary>コンストラクタ。</summary>
         ''' <param name="tokens">ループ変数のトークン。</param>
-        Public Sub New(tokens As List(Of IToken))
+        Public Sub New(tokens As List(Of TokenPoint))
             Me.mToken = tokens
         End Sub
 

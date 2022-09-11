@@ -251,6 +251,7 @@ Partial Module ZoppaDSqlManager
                             sw.WriteLine(ln)
                             writed = True
                         End If
+                        Threading.Thread.Sleep(50)
                     Loop While writed
                 End Using
             Catch ex As Exception

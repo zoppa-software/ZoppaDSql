@@ -3,12 +3,19 @@ Option Explicit On
 
 Namespace Analysis.Tokens
 
-    ''' <summary>Ifトークン。</summary>
-    Public NotInheritable Class IfToken
-        Implements IToken, ICommandToken
+    ''' <summary>カンマトークン。</summary>
+    Public NotInheritable Class CommaToken
+        Implements IToken
 
-        ' 条件式トークン
-        Private ReadOnly mToken As List(Of TokenPoint)
+        ''' <summary>遅延インスタンス生成プロパティ。</summary>
+        Private Shared ReadOnly Property LazyInstance() As New Lazy(Of CommaToken)(Function() New CommaToken())
+
+        ''' <summary>唯一のインスタンスを返します。</summary>
+        Public Shared ReadOnly Property Value() As CommaToken
+            Get
+                Return LazyInstance.Value
+            End Get
+        End Property
 
         ''' <summary>格納されている値を取得する。</summary>
         ''' <returns>格納値。</returns>
@@ -22,30 +29,22 @@ Namespace Analysis.Tokens
         ''' <returns>トークン名。</returns>
         Public ReadOnly Property TokenName As String Implements IToken.TokenName
             Get
-                Return NameOf(IfToken)
-            End Get
-        End Property
-
-        ''' <summary>条件式トークンリストを取得します。</summary>
-        ''' <returns>条件式トークンリスト。</returns>
-        Public ReadOnly Property CommandTokens As List(Of TokenPoint) Implements ICommandToken.CommandTokens
-            Get
-                Return Me.mToken
+                Return NameOf(CommaToken)
             End Get
         End Property
 
         ''' <summary>コンストラクタ。</summary>
-        ''' <param name="tokens">条件式のトークン。</param>
-        Public Sub New(tokens As List(Of TokenPoint))
-            Me.mToken = New List(Of TokenPoint)(tokens)
+        Private Sub New()
+
         End Sub
 
         ''' <summary>文字列条件を取得します。</summary>
         ''' <returns>文字列表現。</returns>
         Public Overrides Function ToString() As String
-            Return "If"
+            Return ","
         End Function
 
     End Class
 
 End Namespace
+

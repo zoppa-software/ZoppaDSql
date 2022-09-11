@@ -11,13 +11,13 @@ Imports ZoppaDSql.Analysis.Tokens
 Namespace Analysis
 
     ''' <summary>トークンを解析する。</summary>
-    Friend NotInheritable Class ParserAnalysis
+    Friend Module ParserAnalysis
 
         ''' <summary>動的SQLの置き換えを実行します。</summary>
         ''' <param name="sqlQuery">動的SQL。</param>
         ''' <param name="parameter">パラメータ。</param>
         ''' <returns>置き換え結果。</returns>
-        Public Shared Function Replase(sqlQuery As String, Optional parameter As Object = Nothing) As String
+        Public Function Replase(sqlQuery As String, Optional parameter As Object = Nothing) As String
             ' トークン配列に変換
             Dim tokens = LexicalAnalysis.Compile(sqlQuery)
             LoggingDebug("tokens")
@@ -47,10 +47,10 @@ Namespace Analysis
         ''' <summary>置き換え式の階層を作成します。</summary>
         ''' <param name="src">トークンリスト。</param>
         ''' <returns>階層リンク。</returns>
-        Public Shared Function CreateHierarchy(src As List(Of IToken)) As TokenLink
+        Public Function CreateHierarchy(src As List(Of TokenPoint)) As TokenLink
             Dim root As New TokenLink(Nothing)
             If src?.Count > 0 Then
-                Dim tmp As New List(Of IToken)(src)
+                Dim tmp As New List(Of TokenPoint)(src)
                 tmp.Reverse()
 
                 CreateHierarchy(root, tmp)
@@ -62,8 +62,8 @@ Namespace Analysis
         ''' <param name="node">階層ノード。</param>
         ''' <param name="tokens">対象トークンリスト。</param>
         ''' <param name="partitionTokens"></param>
-        Private Shared Sub CreateHierarchy(node As TokenLink,
-                                           tokens As List(Of IToken),
+        Private Sub CreateHierarchy(node As TokenLink,
+                                           tokens As List(Of TokenPoint),
                                            ParamArray partitionTokens As String())
             Dim limit As New HashSet(Of String)()
             For Each tkn In partitionTokens
@@ -109,7 +109,7 @@ Namespace Analysis
         ''' <param name="children">階層情報。</param>
         ''' <param name="buffer">出力先バッファ。</param>
         ''' <param name="prm">環境値情報。</param>
-        Private Shared Sub Evaluation(children As List(Of TokenLink), buffer As StringBuilder, prm As EnvironmentValue)
+        Private Sub Evaluation(children As List(Of TokenLink), buffer As StringBuilder, prm As EnvironmentValue)
             Dim tmp As New List(Of TokenLink)(children)
             tmp.Reverse()
 
@@ -129,7 +129,7 @@ Namespace Analysis
                         tmp.RemoveAt(tmp.Count - 1)
 
                     Case NameOf(ReplaseToken)
-                        Dim rtoken = TryCast(chd.TargetToken, ReplaseToken)
+                        Dim rtoken = chd.TargetToken.GetToken(Of ReplaseToken)()
                         If rtoken IsNot Nothing Then
                             Dim ans = prm.GetValue(If(rtoken.Contents?.ToString(), ""))
                             If TypeOf ans Is String AndAlso rtoken.IsEscape Then
@@ -156,7 +156,7 @@ Namespace Analysis
         ''' <param name="tmp">階層情報。</param>
         ''' <param name="buffer">出力先バッファ。</param>
         ''' <param name="prm">環境値情報。</param>
-        Private Shared Sub EvaluationIf(tmp As List(Of TokenLink), buffer As StringBuilder, prm As EnvironmentValue)
+        Private Sub EvaluationIf(tmp As List(Of TokenLink), buffer As StringBuilder, prm As EnvironmentValue)
             ' If、ElseIf、Elseブロックを集める
             Dim blocks As New List(Of TokenLink)()
             For i As Integer = tmp.Count - 1 To 0 Step -1
@@ -174,24 +174,26 @@ Namespace Analysis
                 Select Case iftkn.TargetToken.TokenName
                     Case NameOf(IfToken), NameOf(ElseIfToken)
                         ' 条件を評価して真ならば、ブロックを出力
-                        Dim ifans = Executes(CType(iftkn.TargetToken, ICommandToken).CommandTokens, prm)
+                        Dim ifans = Executes(iftkn.TargetToken.GetCommandToken().CommandTokens, prm)
                         If TypeOf ifans.Contents Is Boolean AndAlso CBool(ifans.Contents) Then
                             Evaluation(iftkn.Children, buffer, prm)
-                            Exit For
+                            Return
                         End If
 
                     Case NameOf(ElseToken)
                         Evaluation(iftkn.Children, buffer, prm)
+                        Return
                 End Select
             Next
+            buffer.Append(" ")
         End Sub
 
         ''' <summary>Foreachを評価します。</summary>
         ''' <param name="fortoken">Foreachブロック。</param>
         ''' <param name="buffer">出力先バッファ。</param>
         ''' <param name="prm">環境値情報。</param>
-        Private Shared Sub EvaluationFor(forToken As TokenLink, buffer As StringBuilder, prm As EnvironmentValue)
-            Dim forTkn = CType(forToken.TargetToken, ForEachToken)
+        Private Sub EvaluationFor(forToken As TokenLink, buffer As StringBuilder, prm As EnvironmentValue)
+            Dim forTkn = forToken.TargetToken.GetToken(Of ForEachToken)()
 
             ' カウンタ変数
             Dim valkey As String = ""
@@ -221,48 +223,11 @@ Namespace Analysis
             prm.LocalVarClear()
         End Sub
 
-        ''' <summary>Trimを評価します。</summary>
-        ''' <param name="trimToken">Trimブロック。</param>
-        ''' <param name="buffer">出力先バッファ。</param>
-        ''' <param name="prm">環境値情報。</param>
-        Private Shared Sub EvaluationTrim(trimToken As TokenLink, buffer As StringBuilder, prm As EnvironmentValue)
-            ' Trim内のトークンを評価
-            Dim buf As New StringBuilder()
-            Evaluation(trimToken.Children, buf, prm)
-
-            ' 先頭トークンの文字列を取得
-            Dim ndstr = ""
-            If trimToken.Children?.Count > 0 AndAlso
-               trimToken.Children(0).TargetToken.TokenName = NameOf(QueryToken) Then
-                ndstr &= trimToken.Children(0).TargetToken.Contents?.ToString()
-            End If
-
-            ' 末尾トークンの文字列を取得
-            If trimToken.Children?.Count > 1 AndAlso
-               trimToken.Children(trimToken.Children.Count - 1).TargetToken.TokenName = NameOf(QueryToken) Then
-                ndstr &= trimToken.Children(trimToken.Children.Count - 1).TargetToken.Contents?.ToString()
-            End If
-
-            ' 出力があり、先頭トークンのみ以外なら出力
-            Dim bufstr = buf.ToString()
-            If bufstr.Length > 0 AndAlso bufstr.Trim() <> ndstr.Trim() Then
-                Dim trms = bufstr.TrimEnd()
-                With trms.ToLower()
-                    If .EndsWith("and") Then
-                        bufstr = bufstr.Substring(0, .Length - 3) & bufstr(.Length)
-                    ElseIf .EndsWith("or") Then
-                        bufstr = bufstr.Substring(0, .Length - 2) & bufstr(.Length)
-                    End If
-                End With
-                buffer.Append(bufstr)
-            End If
-        End Sub
-
         ''' <summary>式を解析して結果を取得します。</summary>
         ''' <param name="expression">式文字列。</param>
         ''' <param name="parameter">パラメータ。</param>
         ''' <returns>解析結果。</returns>
-        Public Shared Function Executes(expression As String, Optional parameter As Object = Nothing) As IToken
+        Public Function Executes(expression As String, Optional parameter As Object = Nothing) As IToken
             ' トークン配列に変換
             Dim tokens = LexicalAnalysis.SimpleCompile(expression)
 
@@ -274,23 +239,24 @@ Namespace Analysis
         ''' <param name="tokens">対象トークン。。</param>
         ''' <param name="parameter">パラメータ。</param>
         ''' <returns>解析結果。</returns>
-        Public Shared Function Executes(tokens As List(Of IToken), parameter As EnvironmentValue) As IToken
+        Public Function Executes(tokens As List(Of TokenPoint), parameter As EnvironmentValue) As IToken
             ' 式木を作成
-            Dim parenParser As New ParenParser()
             Dim logicalParser As New LogicalParser()
             Dim compParser As New ComparisonParser()
             Dim addOrSubParser As New AddOrSubParser()
             Dim multiOrDivParser As New MultiOrDivParser()
             Dim facParser As New FactorParser()
-            parenParser.NextParser = logicalParser
+            Dim parenParser As New ParenParser()
+
             logicalParser.NextParser = compParser
             compParser.NextParser = addOrSubParser
             addOrSubParser.NextParser = multiOrDivParser
             multiOrDivParser.NextParser = facParser
             facParser.NextParser = parenParser
+            parenParser.NextParser = logicalParser
 
             Dim tknPtr = New TokenPtr(tokens)
-            Dim expr = parenParser.Parser(tknPtr)
+            Dim expr = logicalParser.Parser(tknPtr)
 
             ' 結果を取得する
             If Not tknPtr.HasNext Then
@@ -304,14 +270,14 @@ Namespace Analysis
         ''' <param name="reader">入力トークンストリーム。</param>
         ''' <param name="nxtParser">次のパーサー。</param>
         ''' <returns>括弧内部式。</returns>
-        Private Shared Function CreateParenExpress(reader As TokenPtr, nxtParser As IParser) As ParenExpress
-            Dim tmp As New List(Of IToken)()
+        Private Function CreateParenExpress(reader As TokenPtr, nxtParser As IParser) As ParenExpress
+            Dim tmp As New List(Of TokenPoint)()
             Dim lv As Integer = 0
             Do While reader.HasNext
                 Dim tkn = reader.Current
                 reader.Move(1)
 
-                Select Case tkn?.TokenName
+                Select Case tkn.TokenName
                     Case NameOf(RParenToken)
                         If lv > 0 Then
                             lv -= 1
@@ -325,91 +291,10 @@ Namespace Analysis
             Return New ParenExpress(nxtParser.Parser(New TokenPtr(tmp)))
         End Function
 
-        ''' <summary>トークン階層リンク。</summary>
-        Public NotInheritable Class TokenLink
-
-            ' 対象トークン
-            Private mToken As IToken
-
-            ' 子要素リスト
-            Private mChildren As List(Of TokenLink)
-
-            ''' <summary>対象トークンを取得します。</summary>
-            Public ReadOnly Property TargetToken As IToken
-                Get
-                    Return Me.mToken
-                End Get
-            End Property
-
-            ''' <summary>子要素リストを取得します。</summary>
-            Public ReadOnly Property Children As List(Of TokenLink)
-                Get
-                    Return Me.mChildren
-                End Get
-            End Property
-
-            ''' <summary>コンストラクタ。</summary>
-            ''' <param name="tkn">対象トークン。</param>
-            Public Sub New(tkn As IToken)
-                Me.mToken = tkn
-            End Sub
-
-            ''' <summary>子要素を追加します。</summary>
-            ''' <param name="token">対象トークン。</param>
-            ''' <returns>追加した階層リンク。</returns>
-            Friend Function AddChild(token As IToken) As TokenLink
-                If Me.mChildren Is Nothing Then
-                    Me.mChildren = New List(Of TokenLink)()
-                End If
-                Dim cnode = New TokenLink(token)
-                Me.mChildren.Add(cnode)
-                Return cnode
-            End Function
-
-        End Class
-
-        ''' <summary>入力トークンストリーム。</summary>
-        Private NotInheritable Class TokenPtr
-
-            ''' <summary>シーク位置ポインタ。</summary>
-            Private mPointer As Integer
-
-            ''' <summary>入力トークン。</summary>
-            Private mTokens As IToken()
-
-            ''' <summary>読み込みの終了していない文字があれば真を返す。</summary>
-            Public ReadOnly Property HasNext As Boolean
-                Get
-                    Return (Me.mPointer < If(Me.mTokens?.Length, 0))
-                End Get
-            End Property
-
-            ''' <summary>カレント文字を返す。</summary>
-            Public ReadOnly Property Current As IToken
-                Get
-                    Return If(Me.mPointer < If(Me.mTokens?.Length, 0), Me.mTokens(Me.mPointer), Nothing)
-                End Get
-            End Property
-
-            ''' <summary>コンストラクタ。</summary>
-            ''' <param name="inputtkn">入力トークン。</param>
-            Public Sub New(inputtkn As IEnumerable(Of IToken))
-                Me.mPointer = 0
-                Me.mTokens = inputtkn.ToArray()
-            End Sub
-
-            ''' <summary>カレント位置を移動させる。</summary>
-            ''' <param name="moveAmount">移動量。</param>
-            Public Sub Move(moveAmount As Integer)
-                Me.mPointer += moveAmount
-            End Sub
-
-        End Class
-
         ''' <summary>解析インターフェイス。</summary>
         Private Interface IParser
 
-            ''' <summary>解析を執行する。</summary>
+            ''' <summary>解析を実行する。</summary>
             ''' <param name="reader">入力トークンストリーム。</param>
             ''' <returns>解析結果。</returns>
             Function Parser(reader As TokenPtr) As IExpression
@@ -428,7 +313,7 @@ Namespace Analysis
             ''' <returns>解析結果。</returns>
             Public Function Parser(reader As TokenPtr) As IExpression Implements IParser.Parser
                 Dim tkn = reader.Current
-                If tkn?.TokenName = NameOf(LParenToken) Then
+                If tkn.TokenName = NameOf(LParenToken) Then
                     reader.Move(1)
                     Return CreateParenExpress(reader, Me.NextParser)
                 Else
@@ -604,7 +489,7 @@ Namespace Analysis
                          NameOf(QueryToken), NameOf(ReplaseToken), NameOf(ObjectToken),
                          NameOf(TrueToken), NameOf(FalseToken), NameOf(NullToken)
                         reader.Move(1)
-                        Return New ValueExpress(tkn)
+                        Return New ValueExpress(tkn.GetToken(Of IToken)())
 
                     Case NameOf(LParenToken)
                         reader.Move(1)
@@ -614,7 +499,7 @@ Namespace Analysis
                         reader.Move(1)
                         Dim nxtExper = Me.Parser(reader)
                         If TypeOf nxtExper Is ValueExpress Then
-                            Return New UnaryExpress(tkn, nxtExper)
+                            Return New UnaryExpress(tkn.GetToken(Of IToken)(), nxtExper)
                         Else
                             Throw New DSqlAnalysisException($"前置き演算子{tkn}が値の前に配置していません")
                         End If
@@ -626,6 +511,6 @@ Namespace Analysis
 
         End Class
 
-    End Class
+    End Module
 
 End Namespace

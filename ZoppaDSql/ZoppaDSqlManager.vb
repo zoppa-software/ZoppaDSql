@@ -42,7 +42,7 @@ Public Module ZoppaDSqlManager
             Next
             Return buf.ToString()
         Else
-            Return vbBack?.ToString()
+            Return If(value?.ToString(), "[null]")
         End If
     End Function
 
@@ -432,6 +432,7 @@ Public Module ZoppaDSqlManager
                 ' SQLクエリを設定
                 Dim prm = If(parameter.Length > 0, parameter(0), Nothing)
                 command.CommandText = ParserAnalysis.Replase(query, prm)
+                LoggingDebug($"Answer SQL : {command.CommandText}")
 
                 ' パラメータの定義を設定
                 Dim props = SetSqlParameterDefine(command, parameter, varFormat)
@@ -802,6 +803,7 @@ Public Module ZoppaDSqlManager
                 ' SQLクエリを設定
                 Dim prm = If(parameter.Length > 0, parameter(0), Nothing)
                 command.CommandText = ParserAnalysis.Replase(query, prm)
+                LoggingDebug($"Answer SQL : {command.CommandText}")
 
                 ' パラメータの定義を設定
                 Dim props = SetSqlParameterDefine(command, parameter, varFormat)

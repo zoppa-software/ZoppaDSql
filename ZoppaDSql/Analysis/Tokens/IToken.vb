@@ -21,7 +21,7 @@ Namespace Analysis.Tokens
 
         ''' <summary>命令トークンリストを取得します。</summary>
         ''' <returns>命令トークンリスト。</returns>
-        ReadOnly Property CommandTokens As List(Of IToken)
+        ReadOnly Property CommandTokens As List(Of TokenPoint)
 
     End Interface
 
