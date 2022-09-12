@@ -278,8 +278,13 @@ Namespace Analysis
                 reader.Move(1)
 
                 Select Case tkn.TokenName
+                    Case NameOf(LParenToken)
+                        tmp.Add(tkn)
+                        lv += 1
+
                     Case NameOf(RParenToken)
                         If lv > 0 Then
+                            tmp.Add(tkn)
                             lv -= 1
                         Else
                             Exit Do

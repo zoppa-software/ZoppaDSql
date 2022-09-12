@@ -29,7 +29,7 @@ Namespace Analysis.Tokens
         ''' <returns>トークン名。</returns>
         Public ReadOnly Property TokenName As String Implements IToken.TokenName
             Get
-                Return NameOf(EndIfToken)
+                Return NameOf(EndTrimToken)
             End Get
         End Property
 

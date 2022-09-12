@@ -83,17 +83,20 @@ Namespace Analysis
         Private Function CheckTrimParen(reader As TokenPtr, leftToken As TokenPoint, nxtChecker As ITrimChecker, answer As StringBuilder) As Boolean
             Dim tmp As New List(Of TokenPoint)()
             Dim lv As Integer = 0
-            Dim rightToken As TokenPoint
             Do While reader.HasNext
                 Dim tkn = reader.Current
                 reader.Move(1)
 
                 Select Case tkn.TokenName
+                    Case NameOf(LParenToken)
+                        tmp.Add(tkn)
+                        lv += 1
+
                     Case NameOf(RParenToken)
                         If lv > 0 Then
+                            tmp.Add(tkn)
                             lv -= 1
                         Else
-                            rightToken = tkn
                             Exit Do
                         End If
                     Case Else
@@ -101,15 +104,30 @@ Namespace Analysis
                 End Select
             Loop
 
-            Dim buf As New StringBuilder()
-            If nxtChecker.Check(New TokenPtr(tmp), buf) Then
-                answer.Append("(")
-                answer.Append(buf.ToString())
-                answer.Append(")")
-                Return True
+            If tmp.Count > 0 Then
+                Dim buf As New StringBuilder()
+                If nxtChecker.Check(New TokenPtr(tmp), buf) Then
+                    answer.Append("(")
+                    answer.Append(buf.ToString())
+                    answer.Append(")")
+                    Return True
+                Else
+                    Return False
+                End If
             Else
-                Return (leftToken.Position = rightToken.Position - 1)
+                answer.Append("()")
+                Return True
             End If
+
+            'Dim buf As New StringBuilder()
+            'If nxtChecker.Check(New TokenPtr(tmp), buf) Then
+            '    answer.Append("(")
+            '    answer.Append(buf.ToString())
+            '    answer.Append(")")
+            '    Return True
+            'Else
+            '    Return (leftToken.Position = rightToken.Position - 1)
+            'End If
         End Function
 
         ''' <summary>Trimチェックインターフェイス。</summary>
