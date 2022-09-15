@@ -1,6 +1,8 @@
 ﻿Option Strict On
 Option Explicit On
 
+Imports ZoppaDSql.TokenCollection
+
 Namespace Analysis.Tokens
 
     ''' <summary>トークンインターフェイス。</summary>
@@ -21,7 +23,7 @@ Namespace Analysis.Tokens
 
         ''' <summary>命令トークンリストを取得します。</summary>
         ''' <returns>命令トークンリスト。</returns>
-        ReadOnly Property CommandTokens As List(Of TokenPoint)
+        ReadOnly Property CommandTokens As List(Of TokenPosition)
 
     End Interface
 

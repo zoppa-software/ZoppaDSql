@@ -1,15 +1,8 @@
 ﻿Option Strict On
 Option Explicit On
 
-Imports System.Data
 Imports System.IO
 Imports System.IO.Compression
-Imports System.Net.Http
-Imports System.Reflection
-Imports System.Runtime.CompilerServices
-Imports System.Transactions
-Imports ZoppaDSql.Analysis
-Imports ZoppaDSql.Analysis.Tokens
 
 ''' <summary>DSql APIモジュール。</summary>
 Partial Module ZoppaDSqlManager
@@ -71,7 +64,7 @@ Partial Module ZoppaDSqlManager
     End Sub
 
     ''' <summary>書き込み中のログがあれば、書き込みが完了するまで待機します。</summary>
-    Public Sub WaitFinish()
+    Public Sub LogWaitFinish()
         mLogger?.WaitFinish()
     End Sub
 
@@ -285,6 +278,7 @@ Partial Module ZoppaDSqlManager
             Me.Write(New LogData(Date.Now, LogLevel.ErrorLevel, message))
         End Sub
 
+        ''' <summary>ログ出力終了を待機します。</summary>
         Public Sub WaitFinish() Implements ILogWriter.WaitFinish
             For i As Integer = 0 To 99 ' 事情があって書き込めないとき無限ループするためループ回数制限する
                 If Me.IsWriting Then

@@ -1,12 +1,10 @@
 ﻿Option Strict On
 Option Explicit On
 
-Imports System.Data.Common
-Imports System.IO
-Imports System.Linq.Expressions
 Imports System.Text
-Imports ZoppaDSql.Analysis.Express
+Imports ZoppaDSql.Analysis.Environments
 Imports ZoppaDSql.Analysis.Tokens
+Imports ZoppaDSql.TokenCollection
 
 Namespace Analysis
 
@@ -16,7 +14,7 @@ Namespace Analysis
         ''' <param name="trimToken">Trimブロック。</param>
         ''' <param name="buffer">出力先バッファ。</param>
         ''' <param name="prm">環境値情報。</param>
-        Private Sub EvaluationTrim(trimToken As TokenLink, buffer As StringBuilder, prm As EnvironmentValue)
+        Private Sub EvaluationTrim(trimToken As TokenHierarchy, buffer As StringBuilder, prm As IEnvironmentValue)
             Dim answer As New StringBuilder()
 
             ' Trim内のトークンを評価
@@ -25,7 +23,7 @@ Namespace Analysis
 
             ' 評価結果を再度トークン化
             Dim tokens = LexicalAnalysis.SplitTrimToken(tmpbuf.ToString())
-            Dim tknPtr = New TokenPtr(tokens)
+            Dim tknPtr = New TokenStream(tokens)
 
             '
             Do While tknPtr.HasNext
@@ -80,8 +78,8 @@ Namespace Analysis
         ''' <param name="nxtChecker">次のチェッカー。</param>
         ''' <param name="answer">トリム結果</param>
         ''' <returns>括弧内部式。</returns>
-        Private Function CheckTrimParen(reader As TokenPtr, leftToken As TokenPoint, nxtChecker As ITrimChecker, answer As StringBuilder) As Boolean
-            Dim tmp As New List(Of TokenPoint)()
+        Private Function CheckTrimParen(reader As TokenStream, leftToken As TokenPosition, nxtChecker As ITrimChecker, answer As StringBuilder) As Boolean
+            Dim tmp As New List(Of TokenPosition)()
             Dim lv As Integer = 0
             Do While reader.HasNext
                 Dim tkn = reader.Current
@@ -106,7 +104,7 @@ Namespace Analysis
 
             If tmp.Count > 0 Then
                 Dim buf As New StringBuilder()
-                If nxtChecker.Check(New TokenPtr(tmp), buf) Then
+                If nxtChecker.Check(New TokenStream(tmp), buf) Then
                     answer.Append("(")
                     answer.Append(buf.ToString())
                     answer.Append(")")
@@ -118,16 +116,6 @@ Namespace Analysis
                 answer.Append("()")
                 Return True
             End If
-
-            'Dim buf As New StringBuilder()
-            'If nxtChecker.Check(New TokenPtr(tmp), buf) Then
-            '    answer.Append("(")
-            '    answer.Append(buf.ToString())
-            '    answer.Append(")")
-            '    Return True
-            'Else
-            '    Return (leftToken.Position = rightToken.Position - 1)
-            'End If
         End Function
 
         ''' <summary>Trimチェックインターフェイス。</summary>
@@ -137,7 +125,7 @@ Namespace Analysis
             ''' <param name="reader">入力トークンストリーム。</param>
             ''' <param name="answer">トリム結果。</param>
             ''' <returns>チェック結果。</returns>
-            Function Check(reader As TokenPtr, answer As StringBuilder) As Boolean
+            Function Check(reader As TokenStream, answer As StringBuilder) As Boolean
 
         End Interface
 
@@ -152,7 +140,7 @@ Namespace Analysis
             ''' <param name="reader">入力トークンストリーム。</param>
             ''' <param name="answer">トリム結果。</param>
             ''' <returns>チェック結果。</returns>
-            Public Function Check(reader As TokenPtr, answer As StringBuilder) As Boolean Implements ITrimChecker.Check
+            Public Function Check(reader As TokenStream, answer As StringBuilder) As Boolean Implements ITrimChecker.Check
                 Dim tkn = reader.Current
                 If tkn.TokenName = NameOf(LParenToken) Then
                     reader.Move(1)
@@ -175,7 +163,7 @@ Namespace Analysis
             ''' <param name="reader">入力トークンストリーム。</param>
             ''' <param name="answer">トリム結果。</param>
             ''' <returns>チェック結果。</returns>
-            Public Function Check(reader As TokenPtr, answer As StringBuilder) As Boolean Implements ITrimChecker.Check
+            Public Function Check(reader As TokenStream, answer As StringBuilder) As Boolean Implements ITrimChecker.Check
                 Dim bufleft As New StringBuilder()
                 Dim extleft = Me.NextChecker.Check(reader, bufleft)
 
@@ -215,7 +203,7 @@ Namespace Analysis
             ''' <param name="reader">入力トークンストリーム。</param>
             ''' <param name="answer">トリム結果。</param>
             ''' <returns>チェック結果。</returns>
-            Public Function Check(reader As TokenPtr, answer As StringBuilder) As Boolean Implements ITrimChecker.Check
+            Public Function Check(reader As TokenStream, answer As StringBuilder) As Boolean Implements ITrimChecker.Check
                 Dim bufleft As New StringBuilder()
                 Dim extleft = Me.NextChecker.Check(reader, bufleft)
 
@@ -254,7 +242,7 @@ Namespace Analysis
             ''' <summary>チェックする。</summary>
             ''' <param name="reader">入力トークンストリーム。</param>
             ''' <returns>チェック結果。</returns>
-            Public Function Check(reader As TokenPtr, answer As StringBuilder) As Boolean Implements ITrimChecker.Check
+            Public Function Check(reader As TokenStream, answer As StringBuilder) As Boolean Implements ITrimChecker.Check
                 Dim buf As New StringBuilder()
 
                 If reader.HasNext Then
@@ -290,7 +278,9 @@ Namespace Analysis
                                 res = True
                         End Select
                     Loop
-                    If res Then answer.Append(buf.ToString())
+                    If res Then
+                        answer.Append(buf.ToString())
+                    End If
                     Return res
                 Else
                     Return False

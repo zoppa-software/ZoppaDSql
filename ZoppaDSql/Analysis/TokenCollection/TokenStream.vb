@@ -1,16 +1,16 @@
 ﻿Option Strict On
 Option Explicit On
 
-Namespace Analysis
+Namespace TokenCollection
 
     ''' <summary>入力トークンストリーム。</summary>
-    Friend NotInheritable Class TokenPtr
+    Friend NotInheritable Class TokenStream
 
         ''' <summary>シーク位置ポインタ。</summary>
         Private mPointer As Integer
 
         ''' <summary>入力トークン。</summary>
-        Private mTokens As TokenPoint()
+        Private mTokens As TokenPosition()
 
         ''' <summary>読み込みの終了していない文字があれば真を返す。</summary>
         Public ReadOnly Property HasNext As Boolean
@@ -20,7 +20,7 @@ Namespace Analysis
         End Property
 
         ''' <summary>カレント文字を返す。</summary>
-        Public ReadOnly Property Current As TokenPoint
+        Public ReadOnly Property Current As TokenPosition
             Get
                 Return If(Me.mPointer < If(Me.mTokens?.Length, 0), Me.mTokens(Me.mPointer), Nothing)
             End Get
@@ -28,7 +28,7 @@ Namespace Analysis
 
         ''' <summary>コンストラクタ。</summary>
         ''' <param name="inputtkn">入力トークン。</param>
-        Public Sub New(inputtkn As IEnumerable(Of TokenPoint))
+        Public Sub New(inputtkn As IEnumerable(Of TokenPosition))
             Me.mPointer = 0
             Me.mTokens = inputtkn.ToArray()
         End Sub

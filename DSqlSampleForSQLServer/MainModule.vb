@@ -11,7 +11,23 @@ Module MainModule
     End Sub
 
     Private Async Function Manage() As Task(Of Integer)
-        Using sqlsvr As New SqlConnection("Server=tcp:zoppa-dsql-sample.database.windows.net,1433;Initial Catalog=DSqlSample;Persist Security Info=False;User ID={};Password={};MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;")
+        ZoppaDSqlManager.UseDefaultLogger()
+
+        Dim query0 = "" &
+"select
+  [City], [CountryRegion], [AddressLine1]
+from
+  [SalesLT].[Address]
+{trim}
+where
+  ({if searchCuntry <> NULL}[SalesLT].[Address].[CountryRegion] = #{searchCuntry}{end if} and
+  {if searchCity <> NULL}[SalesLT].[Address].[City] = @searchCity{end if}) or
+  {if searchCity2 <> NULL}[SalesLT].[Address].[City] = @searchCity2{end if}
+{end trim}
+"
+        Dim k = ZoppaDSqlManager.Compile(query0, New With {.searchCuntry = Nothing, .searchCity = Nothing, .searchCity2 = "2"})
+
+
             sqlsvr.Open()
 
             Dim query1 = "" &
@@ -21,7 +37,7 @@ from
   [SalesLT].[Address]
 {trim}
 where
-  {if searchCuntry <> NULL}[SalesLT].[Address].[CountryRegion] = #{searchCuntry} and{end if}
+  {if searchCuntry <> NULL}[SalesLT].[Address].[CountryRegion] = #{searchCuntry}{end if} and
   {if searchCity <> NULL}[SalesLT].[Address].[City] = @searchCity{end if}
 {end trim}
 "
@@ -35,6 +51,9 @@ where
                 Console.WriteLine("都市={0}, 国={1}, Address={2}", v.City, v.Country, v.Address)
             Next
         End Using
+
+        ZoppaDSqlManager.LogWaitFinish()
+
         Return 0
     End Function
 

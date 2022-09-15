@@ -3,9 +3,9 @@ Option Explicit On
 
 Imports ZoppaDSql.Analysis.Tokens
 
-Namespace Analysis
+Namespace TokenCollection
 
-    Public Structure TokenPoint
+    Public Structure TokenPosition
         Implements IToken
 
         Private ReadOnly Token As IToken

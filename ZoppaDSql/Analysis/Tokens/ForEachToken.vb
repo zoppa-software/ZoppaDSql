@@ -1,6 +1,8 @@
 ﻿Option Strict On
 Option Explicit On
 
+Imports ZoppaDSql.TokenCollection
+
 Namespace Analysis.Tokens
 
     ''' <summary>ForEachトークン。</summary>
@@ -8,7 +10,7 @@ Namespace Analysis.Tokens
         Implements IToken, ICommandToken
 
         ' 条件式トークン
-        Private ReadOnly mToken As List(Of TokenPoint)
+        Private ReadOnly mToken As List(Of TokenPosition)
 
         ''' <summary>格納されている値を取得する。</summary>
         ''' <returns>格納値。</returns>
@@ -28,7 +30,7 @@ Namespace Analysis.Tokens
 
         ''' <summary>条件式トークンリストを取得します。</summary>
         ''' <returns>条件式トークンリスト。</returns>
-        Public ReadOnly Property CommandTokens As List(Of TokenPoint) Implements ICommandToken.CommandTokens
+        Public ReadOnly Property CommandTokens As List(Of TokenPosition) Implements ICommandToken.CommandTokens
             Get
                 Return Me.mToken
             End Get
@@ -36,7 +38,7 @@ Namespace Analysis.Tokens
 
         ''' <summary>コンストラクタ。</summary>
         ''' <param name="tokens">ループ変数のトークン。</param>
-        Public Sub New(tokens As List(Of TokenPoint))
+        Public Sub New(tokens As List(Of TokenPosition))
             Me.mToken = tokens
         End Sub
 

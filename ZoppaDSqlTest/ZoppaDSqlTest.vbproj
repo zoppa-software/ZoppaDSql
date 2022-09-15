@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <RootNamespace>ZoppaDSqlTest</RootNamespace>
-    <TargetFramework>net6.0</TargetFramework>
+    <TargetFramework>net472</TargetFramework>
 
     <IsPackable>false</IsPackable>
   </PropertyGroup>
@@ -22,6 +22,15 @@
 
   <ItemGroup>
     <ProjectReference Include="..\ZoppaDSql\ZoppaDSql.vbproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="CsvFiles\Sample1.csv">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="CsvFiles\Sample2.csv">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
 </Project>

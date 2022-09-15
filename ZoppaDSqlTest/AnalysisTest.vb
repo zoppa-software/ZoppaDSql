@@ -1,9 +1,9 @@
 Imports System
-Imports System.Formats
 Imports ZoppaDSql
 Imports Xunit
 Imports ZoppaDSql.Analysis.Express
 Imports ZoppaDSql.Analysis
+Imports ZoppaDSql.Analysis.Environments
 
 Namespace ZoppaDSqlTest
     Public Class AnalysisTest
@@ -158,7 +158,7 @@ Namespace ZoppaDSqlTest
 
         <Fact>
         Sub EnvironmentTest()
-            Dim env As New EnvironmentValue(New With {.prm1 = 100, .prm2 = "abc"})
+            Dim env As New EnvironmentObjectValue(New With {.prm1 = 100, .prm2 = "abc"})
             Assert.Equal(env.GetValue("prm1"), 100)
             Assert.Equal(env.GetValue("prm2"), "abc")
 

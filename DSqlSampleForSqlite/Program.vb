@@ -2,6 +2,7 @@ Imports System
 Imports System.Data.SQLite
 Imports System.Diagnostics.CodeAnalysis
 Imports ZoppaDSql
+Imports ZoppaDSql.Csv
 
 Module Program
 
@@ -34,7 +35,22 @@ where
             For Each v In ans2
                 Console.WriteLine("AlbumId={0}, AlbumTitle={1}, ArtistName={2}", v.AlbumId, v.AlbumTitle, v.ArtistName)
             Next
-        End Using
+
+            Using sr As New CsvReaderStream("Sample.csv")
+                Using tran = sqlite.BeginTransaction()
+                    Await sqlite.SetTransaction(tran).ExecuteQuerySync("delete from SampleDB")
+
+                    Dim query2 = "insert into SampleDB (indexno, name) values (@indexno, @name)"
+                    Dim builder As New CsvParameterBuilder()
+                    builder.Add("indexno", CsvType.CsvInteger)
+                    builder.Add("name", CsvType.CsvString)
+                    Dim ans3 = sqlite.SetTransaction(tran).ExecuteQuery(query2, sr, builder)
+                    Dim a As Integer = 50
+
+                    tran.Commit()
+                End Using
+            End Using
+            End Using
         Return 0
     End Function
 

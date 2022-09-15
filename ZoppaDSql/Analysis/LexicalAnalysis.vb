@@ -3,6 +3,7 @@ Option Explicit On
 
 Imports System.Text
 Imports ZoppaDSql.Analysis.Tokens
+Imports ZoppaDSql.TokenCollection
 
 Namespace Analysis
 
@@ -12,8 +13,8 @@ Namespace Analysis
         ''' <summary>文字列をトークン解析します。</summary>
         ''' <param name="command">文字列。</param>
         ''' <returns>トークンリスト。</returns>
-        Public Function Compile(command As String) As List(Of TokenPoint)
-            Dim tokens As New List(Of TokenPoint)()
+        Public Function Compile(command As String) As List(Of TokenPosition)
+            Dim tokens As New List(Of TokenPosition)()
 
             Dim reader = New StringPtr(command)
 
@@ -26,22 +27,22 @@ Namespace Analysis
                     Case "{"c
                         pos = reader.CurrentPosition
                         token = CreateQueryToken(buffer)
-                        If token IsNot Nothing Then tokens.Add(New TokenPoint(token, pos))
+                        If token IsNot Nothing Then tokens.Add(New TokenPosition(token, pos))
 
                         pos = reader.CurrentPosition
                         token = CreateTokens(reader)
-                        If token IsNot Nothing Then tokens.Add(New TokenPoint(token, pos))
+                        If token IsNot Nothing Then tokens.Add(New TokenPosition(token, pos))
 
                     Case "#"c, "!"c, "$"c
                         If reader.Current = "{"c Then
                             pos = reader.CurrentPosition
                             token = CreateQueryToken(buffer)
-                            If token IsNot Nothing Then tokens.Add(New TokenPoint(token, pos))
+                            If token IsNot Nothing Then tokens.Add(New TokenPosition(token, pos))
 
                             reader.CurrentToMove()
                             pos = reader.CurrentPosition
                             token = CreateReplaseToken(reader, c = "#"c)
-                            tokens.Add(New TokenPoint(token, pos))
+                            tokens.Add(New TokenPosition(token, pos))
                         Else
                             buffer.Append(c)
                         End If
@@ -59,7 +60,7 @@ Namespace Analysis
 
             pos = reader.CurrentPosition
             token = CreateQueryToken(buffer)
-            If token IsNot Nothing Then tokens.Add(New TokenPoint(token, pos))
+            If token IsNot Nothing Then tokens.Add(New TokenPosition(token, pos))
 
             Return tokens
         End Function
@@ -67,7 +68,7 @@ Namespace Analysis
         ''' <summary>文字列をトークン解析します（簡潔な式用）</summary>
         ''' <param name="command">文字列。</param>
         ''' <returns>トークンリスト。</returns>
-        Public Function SimpleCompile(command As String) As List(Of TokenPoint)
+        Public Function SimpleCompile(command As String) As List(Of TokenPosition)
             Return SplitToken(command)
         End Function
 
@@ -148,9 +149,9 @@ Namespace Analysis
         ''' <summary>文字列を分割してトークンリストを作成する。</summary>
         ''' <param name="input">対象文字列。</param>
         ''' <returns>トークンリスト。</returns>
-        Public Function SplitToken(input As String) As List(Of TokenPoint)
+        Public Function SplitToken(input As String) As List(Of TokenPosition)
             Dim keychar As New HashSet(Of Char)(New Char() {"+"c, "-"c, "*"c, "/"c, "("c, ")"c, "="c, "<"c, ">"c, "!"c, ChrW(0)})
-            Dim tokens As New List(Of TokenPoint)()
+            Dim tokens As New List(Of TokenPosition)()
 
             Dim reader = New StringPtr(input)
 
@@ -162,76 +163,76 @@ Namespace Analysis
                 Else
                     Dim pos = reader.CurrentPosition
                     If reader.EqualKeyword("=") Then
-                        tokens.Add(New TokenPoint(EqualToken.Value, pos))
+                        tokens.Add(New TokenPosition(EqualToken.Value, pos))
                         reader.Move(1)
                     ElseIf reader.EqualKeyword("<=") Then
-                        tokens.Add(New TokenPoint(LessEqualToken.Value, pos))
+                        tokens.Add(New TokenPosition(LessEqualToken.Value, pos))
                         reader.Move(2)
                     ElseIf reader.EqualKeyword(">=") Then
-                        tokens.Add(New TokenPoint(GreaterEqualToken.Value, pos))
+                        tokens.Add(New TokenPosition(GreaterEqualToken.Value, pos))
                         reader.Move(2)
                     ElseIf reader.EqualKeyword("<>") Then
-                        tokens.Add(New TokenPoint(NotEqualToken.Value, pos))
+                        tokens.Add(New TokenPosition(NotEqualToken.Value, pos))
                         reader.Move(2)
                     ElseIf reader.EqualKeyword("!=") Then
-                        tokens.Add(New TokenPoint(NotEqualToken.Value, pos))
+                        tokens.Add(New TokenPosition(NotEqualToken.Value, pos))
                         reader.Move(2)
                     ElseIf reader.EqualKeyword("<") Then
-                        tokens.Add(New TokenPoint(LessToken.Value, pos))
+                        tokens.Add(New TokenPosition(LessToken.Value, pos))
                         reader.Move(1)
                     ElseIf reader.EqualKeyword(">") Then
-                        tokens.Add(New TokenPoint(GreaterToken.Value, pos))
+                        tokens.Add(New TokenPosition(GreaterToken.Value, pos))
                         reader.Move(1)
                     ElseIf reader.EqualKeywordTail("true", keychar) Then
-                        tokens.Add(New TokenPoint(TrueToken.Value, pos))
+                        tokens.Add(New TokenPosition(TrueToken.Value, pos))
                         reader.Move(4)
                     ElseIf reader.EqualKeywordTail("false", keychar) Then
-                        tokens.Add(New TokenPoint(FalseToken.Value, pos))
+                        tokens.Add(New TokenPosition(FalseToken.Value, pos))
                         reader.Move(5)
                     ElseIf reader.EqualKeywordTail("not", keychar) Then
-                        tokens.Add(New TokenPoint(NotToken.Value, pos))
+                        tokens.Add(New TokenPosition(NotToken.Value, pos))
                         reader.Move(3)
                     ElseIf reader.EqualKeywordTail("null", keychar) Then
-                        tokens.Add(New TokenPoint(NullToken.Value, pos))
+                        tokens.Add(New TokenPosition(NullToken.Value, pos))
                         reader.Move(4)
                     ElseIf reader.EqualKeywordTail("nothing", keychar) Then
-                        tokens.Add(New TokenPoint(NullToken.Value, pos))
+                        tokens.Add(New TokenPosition(NullToken.Value, pos))
                         reader.Move(7)
                     ElseIf reader.EqualKeywordTail("and", keychar) Then
-                        tokens.Add(New TokenPoint(AndToken.Value, pos))
+                        tokens.Add(New TokenPosition(AndToken.Value, pos))
                         reader.Move(3)
                     ElseIf reader.EqualKeywordTail("or", keychar) Then
-                        tokens.Add(New TokenPoint(OrToken.Value, pos))
+                        tokens.Add(New TokenPosition(OrToken.Value, pos))
                         reader.Move(2)
                     ElseIf reader.EqualKeywordTail("in", keychar) Then
-                        tokens.Add(New TokenPoint(InToken.Value, pos))
+                        tokens.Add(New TokenPosition(InToken.Value, pos))
                         reader.Move(2)
                     ElseIf reader.EqualKeyword("+") Then
-                        tokens.Add(New TokenPoint(PlusToken.Value, pos))
+                        tokens.Add(New TokenPosition(PlusToken.Value, pos))
                         reader.Move(1)
                     ElseIf reader.EqualKeyword("-") Then
-                        tokens.Add(New TokenPoint(MinusToken.Value, pos))
+                        tokens.Add(New TokenPosition(MinusToken.Value, pos))
                         reader.Move(1)
                     ElseIf reader.EqualKeyword("*") Then
-                        tokens.Add(New TokenPoint(MultiToken.Value, pos))
+                        tokens.Add(New TokenPosition(MultiToken.Value, pos))
                         reader.Move(1)
                     ElseIf reader.EqualKeyword("/") Then
-                        tokens.Add(New TokenPoint(DivToken.Value, pos))
+                        tokens.Add(New TokenPosition(DivToken.Value, pos))
                         reader.Move(1)
                     ElseIf reader.EqualKeyword("(") Then
-                        tokens.Add(New TokenPoint(LParenToken.Value, pos))
+                        tokens.Add(New TokenPosition(LParenToken.Value, pos))
                         reader.Move(1)
                     ElseIf reader.EqualKeyword(")") Then
-                        tokens.Add(New TokenPoint(RParenToken.Value, pos))
+                        tokens.Add(New TokenPosition(RParenToken.Value, pos))
                         reader.Move(1)
                     ElseIf c = "#"c Then
-                        tokens.Add(New TokenPoint(CreateDateToken(reader), pos))
+                        tokens.Add(New TokenPosition(CreateDateToken(reader), pos))
                     ElseIf c = "'"c Then
-                        tokens.Add(New TokenPoint(CreateStringToken(reader), pos))
+                        tokens.Add(New TokenPosition(CreateStringToken(reader), pos))
                     ElseIf Char.IsDigit(c) Then
-                        tokens.Add(New TokenPoint(CreateNumberToken(reader), pos))
+                        tokens.Add(New TokenPosition(CreateNumberToken(reader), pos))
                     Else
-                        tokens.Add(New TokenPoint(CreateIdentToken(reader, keychar), pos))
+                        tokens.Add(New TokenPosition(CreateIdentToken(reader, keychar), pos))
                     End If
                 End If
             Loop
@@ -242,9 +243,9 @@ Namespace Analysis
         ''' <summary>文字列を文節に区切ります。</summary>
         ''' <param name="input">区切る文字列。</param>
         ''' <returns>文節リスト。</returns>
-        Public Function SplitTrimToken(input As String) As List(Of TokenPoint)
+        Public Function SplitTrimToken(input As String) As List(Of TokenPosition)
             Dim keychar As New HashSet(Of Char)(New Char() {"+"c, "-"c, "*"c, "/"c, "("c, ")"c, "="c, "<"c, ">"c, "!"c, ChrW(0)})
-            Dim tokens As New List(Of TokenPoint)()
+            Dim tokens As New List(Of TokenPosition)()
 
             Dim reader = New StringPtr(input)
 
@@ -253,58 +254,58 @@ Namespace Analysis
 
                 Dim pos = reader.CurrentPosition
                 If Char.IsWhiteSpace(c) Then
-                    tokens.Add(New TokenPoint(New SpaceToken(c), pos))
+                    tokens.Add(New TokenPosition(New SpaceToken(c), pos))
                     reader.Move(1)
                 ElseIf reader.EqualKeyword("=") Then
-                    tokens.Add(New TokenPoint(New IdentToken("="), pos))
+                    tokens.Add(New TokenPosition(New IdentToken("="), pos))
                     reader.Move(1)
                 ElseIf reader.EqualKeyword("<=") Then
-                    tokens.Add(New TokenPoint(New IdentToken("<="), pos))
+                    tokens.Add(New TokenPosition(New IdentToken("<="), pos))
                     reader.Move(2)
                 ElseIf reader.EqualKeyword(">=") Then
-                    tokens.Add(New TokenPoint(New IdentToken(">="), pos))
+                    tokens.Add(New TokenPosition(New IdentToken(">="), pos))
                     reader.Move(2)
                 ElseIf reader.EqualKeyword("!=") Then
-                    tokens.Add(New TokenPoint(New IdentToken("!="), pos))
+                    tokens.Add(New TokenPosition(New IdentToken("!="), pos))
                     reader.Move(2)
                 ElseIf reader.EqualKeyword("<>") Then
-                    tokens.Add(New TokenPoint(New IdentToken("<>"), pos))
+                    tokens.Add(New TokenPosition(New IdentToken("<>"), pos))
                     reader.Move(2)
                 ElseIf reader.EqualKeyword("<") Then
-                    tokens.Add(New TokenPoint(New IdentToken("<"), pos))
+                    tokens.Add(New TokenPosition(New IdentToken("<"), pos))
                     reader.Move(1)
                 ElseIf reader.EqualKeyword(">") Then
-                    tokens.Add(New TokenPoint(New IdentToken(">"), pos))
+                    tokens.Add(New TokenPosition(New IdentToken(">"), pos))
                     reader.Move(1)
                 ElseIf reader.EqualKeyword(",") Then
-                    tokens.Add(New TokenPoint(CommaToken.Value, pos))
+                    tokens.Add(New TokenPosition(CommaToken.Value, pos))
                     reader.Move(1)
                 ElseIf reader.EqualKeywordTail("and", keychar) Then
-                    tokens.Add(New TokenPoint(New AndOrToken(reader.GetString(3)), pos))
+                    tokens.Add(New TokenPosition(New AndOrToken(reader.GetString(3)), pos))
                     reader.Move(3)
                 ElseIf reader.EqualKeywordTail("or", keychar) Then
-                    tokens.Add(New TokenPoint(New AndOrToken(reader.GetString(2)), pos))
+                    tokens.Add(New TokenPosition(New AndOrToken(reader.GetString(2)), pos))
                     reader.Move(2)
                 ElseIf reader.EqualKeyword("+") Then
-                    tokens.Add(New TokenPoint(New IdentToken("+"), pos))
+                    tokens.Add(New TokenPosition(New IdentToken("+"), pos))
                     reader.Move(1)
                 ElseIf reader.EqualKeyword("-") Then
-                    tokens.Add(New TokenPoint(New IdentToken("-"), pos))
+                    tokens.Add(New TokenPosition(New IdentToken("-"), pos))
                     reader.Move(1)
                 ElseIf reader.EqualKeyword("*") Then
-                    tokens.Add(New TokenPoint(New IdentToken("*"), pos))
+                    tokens.Add(New TokenPosition(New IdentToken("*"), pos))
                     reader.Move(1)
                 ElseIf reader.EqualKeyword("/") Then
-                    tokens.Add(New TokenPoint(New IdentToken("/"), pos))
+                    tokens.Add(New TokenPosition(New IdentToken("/"), pos))
                     reader.Move(1)
                 ElseIf reader.EqualKeyword("(") Then
-                    tokens.Add(New TokenPoint(LParenToken.Value, pos))
+                    tokens.Add(New TokenPosition(LParenToken.Value, pos))
                     reader.Move(1)
                 ElseIf reader.EqualKeyword(")") Then
-                    tokens.Add(New TokenPoint(RParenToken.Value, pos))
+                    tokens.Add(New TokenPosition(RParenToken.Value, pos))
                     reader.Move(1)
                 Else
-                    tokens.Add(New TokenPoint(CreateIdentToken(reader, keychar), pos))
+                    tokens.Add(New TokenPosition(CreateIdentToken(reader, keychar), pos))
                 End If
             Loop
 

@@ -5,8 +5,10 @@ Imports System.Data.Common
 Imports System.IO
 Imports System.Linq.Expressions
 Imports System.Text
+Imports ZoppaDSql.Analysis.Environments
 Imports ZoppaDSql.Analysis.Express
 Imports ZoppaDSql.Analysis.Tokens
+Imports ZoppaDSql.TokenCollection
 
 Namespace Analysis
 
@@ -30,7 +32,7 @@ Namespace Analysis
 
             ' 置き換え式を解析して出力文字列を取得します。
             Dim buffer As New StringBuilder()
-            Dim values As New EnvironmentValue(parameter)
+            Dim values = New EnvironmentObjectValue(parameter)
             Evaluation(hierarchy.Children, buffer, values)
 
             ' 空白行を取り除いて返す
@@ -47,10 +49,10 @@ Namespace Analysis
         ''' <summary>置き換え式の階層を作成します。</summary>
         ''' <param name="src">トークンリスト。</param>
         ''' <returns>階層リンク。</returns>
-        Public Function CreateHierarchy(src As List(Of TokenPoint)) As TokenLink
-            Dim root As New TokenLink(Nothing)
+        Public Function CreateHierarchy(src As List(Of TokenPosition)) As TokenHierarchy
+            Dim root As New TokenHierarchy(Nothing)
             If src?.Count > 0 Then
-                Dim tmp As New List(Of TokenPoint)(src)
+                Dim tmp As New List(Of TokenPosition)(src)
                 tmp.Reverse()
 
                 CreateHierarchy(root, tmp)
@@ -62,8 +64,8 @@ Namespace Analysis
         ''' <param name="node">階層ノード。</param>
         ''' <param name="tokens">対象トークンリスト。</param>
         ''' <param name="partitionTokens"></param>
-        Private Sub CreateHierarchy(node As TokenLink,
-                                           tokens As List(Of TokenPoint),
+        Private Sub CreateHierarchy(node As TokenHierarchy,
+                                           tokens As List(Of TokenPosition),
                                            ParamArray partitionTokens As String())
             Dim limit As New HashSet(Of String)()
             For Each tkn In partitionTokens
@@ -109,8 +111,8 @@ Namespace Analysis
         ''' <param name="children">階層情報。</param>
         ''' <param name="buffer">出力先バッファ。</param>
         ''' <param name="prm">環境値情報。</param>
-        Private Sub Evaluation(children As List(Of TokenLink), buffer As StringBuilder, prm As EnvironmentValue)
-            Dim tmp As New List(Of TokenLink)(children)
+        Private Sub Evaluation(children As List(Of TokenHierarchy), buffer As StringBuilder, prm As IEnvironmentValue)
+            Dim tmp As New List(Of TokenHierarchy)(children)
             tmp.Reverse()
 
             Do While tmp.Count > 0
@@ -156,9 +158,9 @@ Namespace Analysis
         ''' <param name="tmp">階層情報。</param>
         ''' <param name="buffer">出力先バッファ。</param>
         ''' <param name="prm">環境値情報。</param>
-        Private Sub EvaluationIf(tmp As List(Of TokenLink), buffer As StringBuilder, prm As EnvironmentValue)
+        Private Sub EvaluationIf(tmp As List(Of TokenHierarchy), buffer As StringBuilder, prm As IEnvironmentValue)
             ' If、ElseIf、Elseブロックを集める
-            Dim blocks As New List(Of TokenLink)()
+            Dim blocks As New List(Of TokenHierarchy)()
             For i As Integer = tmp.Count - 1 To 0 Step -1
                 Dim iftkn = tmp(i)
                 tmp.RemoveAt(tmp.Count - 1)
@@ -192,7 +194,7 @@ Namespace Analysis
         ''' <param name="fortoken">Foreachブロック。</param>
         ''' <param name="buffer">出力先バッファ。</param>
         ''' <param name="prm">環境値情報。</param>
-        Private Sub EvaluationFor(forToken As TokenLink, buffer As StringBuilder, prm As EnvironmentValue)
+        Private Sub EvaluationFor(forToken As TokenHierarchy, buffer As StringBuilder, prm As IEnvironmentValue)
             Dim forTkn = forToken.TargetToken.GetToken(Of ForEachToken)()
 
             ' カウンタ変数
@@ -232,14 +234,14 @@ Namespace Analysis
             Dim tokens = LexicalAnalysis.SimpleCompile(expression)
 
             ' 式木を実行
-            Return Executes(tokens, New EnvironmentValue(parameter))
+            Return Executes(tokens, New EnvironmentObjectValue(parameter))
         End Function
 
         ''' <summary>式を解析して結果を取得します。</summary>
         ''' <param name="tokens">対象トークン。。</param>
         ''' <param name="parameter">パラメータ。</param>
         ''' <returns>解析結果。</returns>
-        Public Function Executes(tokens As List(Of TokenPoint), parameter As EnvironmentValue) As IToken
+        Public Function Executes(tokens As List(Of TokenPosition), parameter As IEnvironmentValue) As IToken
             ' 式木を作成
             Dim logicalParser As New LogicalParser()
             Dim compParser As New ComparisonParser()
@@ -255,7 +257,7 @@ Namespace Analysis
             facParser.NextParser = parenParser
             parenParser.NextParser = logicalParser
 
-            Dim tknPtr = New TokenPtr(tokens)
+            Dim tknPtr = New TokenStream(tokens)
             Dim expr = logicalParser.Parser(tknPtr)
 
             ' 結果を取得する
@@ -270,8 +272,8 @@ Namespace Analysis
         ''' <param name="reader">入力トークンストリーム。</param>
         ''' <param name="nxtParser">次のパーサー。</param>
         ''' <returns>括弧内部式。</returns>
-        Private Function CreateParenExpress(reader As TokenPtr, nxtParser As IParser) As ParenExpress
-            Dim tmp As New List(Of TokenPoint)()
+        Private Function CreateParenExpress(reader As TokenStream, nxtParser As IParser) As ParenExpress
+            Dim tmp As New List(Of TokenPosition)()
             Dim lv As Integer = 0
             Do While reader.HasNext
                 Dim tkn = reader.Current
@@ -293,7 +295,7 @@ Namespace Analysis
                         tmp.Add(tkn)
                 End Select
             Loop
-            Return New ParenExpress(nxtParser.Parser(New TokenPtr(tmp)))
+            Return New ParenExpress(nxtParser.Parser(New TokenStream(tmp)))
         End Function
 
         ''' <summary>解析インターフェイス。</summary>
@@ -302,7 +304,7 @@ Namespace Analysis
             ''' <summary>解析を実行する。</summary>
             ''' <param name="reader">入力トークンストリーム。</param>
             ''' <returns>解析結果。</returns>
-            Function Parser(reader As TokenPtr) As IExpression
+            Function Parser(reader As TokenStream) As IExpression
 
         End Interface
 
@@ -316,7 +318,7 @@ Namespace Analysis
             ''' <summary>解析を実行する。</summary>
             ''' <param name="reader">入力トークンストリーム。</param>
             ''' <returns>解析結果。</returns>
-            Public Function Parser(reader As TokenPtr) As IExpression Implements IParser.Parser
+            Public Function Parser(reader As TokenStream) As IExpression Implements IParser.Parser
                 Dim tkn = reader.Current
                 If tkn.TokenName = NameOf(LParenToken) Then
                     reader.Move(1)
@@ -338,7 +340,7 @@ Namespace Analysis
             ''' <summary>解析を実行する。</summary>
             ''' <param name="reader">入力トークンストリーム。</param>
             ''' <returns>解析結果。</returns>
-            Public Function Parser(reader As TokenPtr) As IExpression Implements IParser.Parser
+            Public Function Parser(reader As TokenStream) As IExpression Implements IParser.Parser
                 Dim tml = Me.NextParser.Parser(reader)
 
                 Do While reader.HasNext
@@ -372,7 +374,7 @@ Namespace Analysis
             ''' <summary>解析を実行する。</summary>
             ''' <param name="reader">入力トークンストリーム。</param>
             ''' <returns>解析結果。</returns>
-            Public Function Parser(reader As TokenPtr) As IExpression Implements IParser.Parser
+            Public Function Parser(reader As TokenStream) As IExpression Implements IParser.Parser
                 Dim tml = Me.NextParser.Parser(reader)
 
                 If reader.HasNext Then
@@ -419,7 +421,7 @@ Namespace Analysis
             ''' <summary>解析を実行する。</summary>
             ''' <param name="reader">入力トークンストリーム。</param>
             ''' <returns>解析結果。</returns>
-            Public Function Parser(reader As TokenPtr) As IExpression Implements IParser.Parser
+            Public Function Parser(reader As TokenStream) As IExpression Implements IParser.Parser
                 Dim tml = Me.NextParser.Parser(reader)
 
                 Do While reader.HasNext
@@ -453,7 +455,7 @@ Namespace Analysis
             ''' <summary>解析を実行する。</summary>
             ''' <param name="reader">入力トークンストリーム。</param>
             ''' <returns>解析結果。</returns>
-            Public Function Parser(reader As TokenPtr) As IExpression Implements IParser.Parser
+            Public Function Parser(reader As TokenStream) As IExpression Implements IParser.Parser
                 Dim tml = Me.NextParser.Parser(reader)
 
                 Do While reader.HasNext
@@ -486,7 +488,7 @@ Namespace Analysis
             ''' <summary>解析を実行する。</summary>
             ''' <param name="reader">入力トークンストリーム。</param>
             ''' <returns>解析結果。</returns>
-            Public Function Parser(reader As TokenPtr) As IExpression Implements IParser.Parser
+            Public Function Parser(reader As TokenStream) As IExpression Implements IParser.Parser
                 Dim tkn = reader.Current
 
                 Select Case tkn.TokenName

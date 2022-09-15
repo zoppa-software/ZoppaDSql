@@ -4,10 +4,11 @@ Option Explicit On
 Imports System.Reflection
 Imports ZoppaDSql.Analysis.Tokens
 
-Namespace Analysis.Express
+Namespace Analysis.Environments
 
-    ''' <summary>環境値情報。</summary>
-    Public NotInheritable Class EnvironmentValue
+    ''' <summary>環境値情報（オブジェクト）。</summary>
+    Public NotInheritable Class EnvironmentObjectValue
+        Implements IEnvironmentValue
 
         ' パラメータの型
         Private ReadOnly mType As Type
@@ -29,14 +30,14 @@ Namespace Analysis.Express
         End Sub
 
         ''' <summary>ローカル変数を消去します。</summary>
-        Public Sub LocalVarClear()
+        Public Sub LocalVarClear() Implements IEnvironmentValue.LocalVarClear
             Me.mVariants.Clear()
         End Sub
 
         ''' <summary>ローカル変数を追加する。</summary>
         ''' <param name="name">変数名。</param>
         ''' <param name="value">変数値。</param>
-        Public Sub AddVariant(name As String, value As Object)
+        Public Sub AddVariant(name As String, value As Object) Implements IEnvironmentValue.AddVariant
             If Me.mVariants.ContainsKey(name) Then
                 Me.mVariants(name) = value
             Else
@@ -47,7 +48,7 @@ Namespace Analysis.Express
         ''' <summary>指定した名称のプロパティから値を取得します。</summary>
         ''' <param name="name">プロパティ名。</param>
         ''' <returns>値。</returns>
-        Public Function GetValue(name As String) As Object
+        Public Function GetValue(name As String) As Object Implements IEnvironmentValue.GetValue
             If Me.mVariants.ContainsKey(name) Then
                 ' ローカル変数に存在しているため、それを返す
                 Return Me.mVariants(name)
