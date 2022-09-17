@@ -9,6 +9,15 @@ Namespace ZoppaDSqlTest
     Public Class AnalysisTest
 
         <Fact>
+        Sub ParentTest()
+            Dim ans1 = "(28 - 3) / (2 + 3)".Executes().Contents
+            Assert.Equal(ans1, 5)
+
+            Dim ans2 = "(28 - 3)".Executes().Contents
+            Assert.Equal(ans2, 25)
+        End Sub
+
+        <Fact>
         Sub ExpressionTest()
             Dim a301 = "100 = 100".Executes().Contents
             Assert.Equal(a301, True)

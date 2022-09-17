@@ -3,6 +3,13 @@
   <PropertyGroup>
     <RootNamespace>ZoppaDSql</RootNamespace>
     <TargetFramework>netstandard2.0</TargetFramework>
+    <Title>Zoppa DSql</Title>
+    <RepositoryUrl>https://github.com/zoppa-software/ZoppaDSql/tree/main</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/zoppa-software/ZoppaDSql/tree/main</PackageProjectUrl>
+    <Authors>zoppa software</Authors>
+    <Company></Company>
+    <Copyright>Copyright © 2022 zoppa software</Copyright>
+	  <VersionPrefix>1.0.1</VersionPrefix>
   </PropertyGroup>
 
   <ItemGroup>

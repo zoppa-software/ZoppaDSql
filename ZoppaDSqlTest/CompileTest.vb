@@ -56,7 +56,6 @@ limit 10")
 where
     (emp_no = sysdate())
 limit 10")
-            Stop
         End Sub
 
     End Class
