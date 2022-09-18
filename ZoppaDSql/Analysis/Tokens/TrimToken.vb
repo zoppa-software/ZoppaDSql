@@ -7,15 +7,8 @@ Namespace Analysis.Tokens
     Public NotInheritable Class TrimToken
         Implements IToken
 
-        ''' <summary>遅延インスタンス生成プロパティ。</summary>
-        Private Shared ReadOnly Property LazyInstance() As New Lazy(Of TrimToken)(Function() New TrimToken())
-
-        ''' <summary>唯一のインスタンスを返します。</summary>
-        Public Shared ReadOnly Property Value() As TrimToken
-            Get
-                Return LazyInstance.Value
-            End Get
-        End Property
+        ''' <summary>末尾をトリムするならば真を返します。</summary>
+        Public ReadOnly Property IsTrimRight As Boolean
 
         ''' <summary>格納されている値を取得する。</summary>
         ''' <returns>格納値。</returns>
@@ -35,7 +28,13 @@ Namespace Analysis.Tokens
 
         ''' <summary>コンストラクタ。</summary>
         Private Sub New()
+            Me.IsTrimRight = True
+        End Sub
 
+        ''' <summary>コンストラクタ。</summary>
+        ''' <param name="isRight">末尾をトリムするならば真。</param>
+        Public Sub New(isRight As Boolean)
+            Me.IsTrimRight = isRight
         End Sub
 
         ''' <summary>文字列条件を取得します。</summary>

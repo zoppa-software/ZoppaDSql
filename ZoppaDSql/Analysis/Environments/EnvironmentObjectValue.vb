@@ -1,6 +1,7 @@
 ﻿Option Strict On
 Option Explicit On
 
+Imports System.Linq.Expressions
 Imports System.Reflection
 Imports ZoppaDSql.Analysis.Tokens
 
@@ -22,11 +23,15 @@ Namespace Analysis.Environments
         ' ローカル変数
         Private ReadOnly mVariants As New Dictionary(Of String, Object)
 
+        ' リトライ中ならば真
+        Private Property mRetrying As Boolean
+
         ''' <summary>コンストラクタ。</summary>
         ''' <param name="target">パラメータ。</param>
         Public Sub New(target As Object)
             Me.mType = target?.GetType()
             Me.mTarget = target
+            Me.mRetrying = False
         End Sub
 
         ''' <summary>ローカル変数を消去します。</summary>
@@ -59,9 +64,20 @@ Namespace Analysis.Environments
                     If prop IsNot Nothing Then
                         Me.mPropDic.Add(name, prop)
                         Return prop.GetValue(Me.mTarget)
-                    Else
-                        Throw New DSqlAnalysisException($"指定したプロパティが定義されていません:{name}")
+
+                    ElseIf Not Me.mRetrying Then
+                        Try
+                            Me.mRetrying = True
+                            Dim tokens = LexicalAnalysis.SimpleCompile(name)
+                            Dim ans = ParserAnalysis.Executes(tokens, Me)
+                            Return ans.Contents
+                        Catch ex As Exception
+                            LoggingDebug($"式を評価できません:{name}")
+                        Finally
+                            Me.mRetrying = False
+                        End Try
                     End If
+                    Throw New DSqlAnalysisException($"指定したプロパティが定義されていません:{name}")
                 Else
                     ' 保持しているプロパティ参照から値を返す
                     Return Me.mPropDic(name).GetValue(Me.mTarget)

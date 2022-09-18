@@ -176,13 +176,12 @@ Namespace ZoppaDSqlTest
             env.AddVariant("prm3", "def")
             Assert.Equal(env.GetValue("prm3"), "def")
 
-            Try
-                env.LocalVarClear()
-                Assert.Equal(env.GetValue("prm3"), "def")
-                Assert.True(False, "ò_óùêœÉGÉâÅ[Ç™î≠ê∂ÇµÇ»Ç¢")
-            Catch ex As DSqlAnalysisException
-
-            End Try
+            env.LocalVarClear()
+            Assert.Throws(Of DSqlAnalysisException)(
+                Sub()
+                    Assert.Equal(env.GetValue("prm3"), "def")
+                End Sub
+            )
         End Sub
 
     End Class

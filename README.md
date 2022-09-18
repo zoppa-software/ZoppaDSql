@@ -37,6 +37,33 @@ limit 10
 その他のライブラリへの依存関係はありません。
 
 ## 使い方
+### SQL文に置き換え式、制御式を埋め込む
+SQL文を部分的に置き換える（置き換え式）、また、部分的に除外するや繰り返すなど（制御式）を埋め込みます。  
+埋め込みは `#{` *参照するプロパティ* `}`、`{` *制御式* `}` の形式で記述します。  
+* 埋め込み式  
+`#{` *参照するプロパティ* `}` を使用すると、`Compile`で引き渡したオブジェクトのプロパティを参照して置き換えます。  
+以下は文字列プロパティを参照しています。 `'`で囲まれて出力していることに注目してください。   
+``` vb
+Dim ansstr1 = "where parson_name = #{name}".Compile(New With {.name = "zouta takshi"})
+Assert.Equal(ansstr1, "where parson_name = 'zouta takshi'")
+```
+次に数値プロパティを参照します。  
+``` vb
+Dim ansnum1 = "where age >= #{age}".Compile(New With {.age = 12})
+Assert.Equal(ansnum1, "where age >= 12")
+```
+次にnullを参照します。  
+``` vb
+Dim ansnull = "set col1 = #{null}".Compile(New With {.null = Nothing})
+Assert.Equal(ansnull, "set col1 = null")
+```
+  
+埋め込みたい文字列にはデーブル名など `'` で囲みたくない場面があります。この場合、`!{}` (または `${}`)を使用します。  
+``` vb
+Dim ansstr2 = "select * from !{table}".Compile(New With {.table = "sample_table"})
+Assert.Equal(ansstr2, "select * from sample_table")
+```
+
 ### SQL文を動的にコンパイルする
 ### SQLクエリを実行し、簡単なマッパー機能を使用してインスタンスを生成する
 ### パラメータにCSVファイルを与えてSQLクエリを実行します

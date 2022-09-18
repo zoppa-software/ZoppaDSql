@@ -9,13 +9,30 @@
     <Authors>zoppa software</Authors>
     <Company></Company>
     <Copyright>Copyright © 2022 zoppa software</Copyright>
-	  <VersionPrefix>1.0.1</VersionPrefix>
+	  <VersionPrefix>1.0.3</VersionPrefix>
+	  <PackageLicenseFile>License.txt</PackageLicenseFile>
+	  <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="Analysis\ParserAnalysis_Trim.vb" />
     <Compile Remove="ZoppaDSqlManager_create.vb" />
     <Compile Remove="ZoppaDSqlManager_csv.vb" />
     <Compile Remove="ZoppaDSqlManager_query.vb" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\README.md">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+    </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="License.txt">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+    </None>
   </ItemGroup>
 
 </Project>
