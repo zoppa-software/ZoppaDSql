@@ -15,7 +15,9 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="Analysis\Environments\EnvironmentDictionaryValue.vb" />
     <Compile Remove="Analysis\ParserAnalysis_Trim.vb" />
+    <Compile Remove="Analysis\Tokens\AndOrToken.vb" />
     <Compile Remove="ZoppaDSqlManager_create.vb" />
     <Compile Remove="ZoppaDSqlManager_csv.vb" />
     <Compile Remove="ZoppaDSqlManager_query.vb" />

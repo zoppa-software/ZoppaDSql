@@ -43,7 +43,7 @@ Namespace Analysis.Express
 
                 Case NameOf(MinusToken)
                     If tkn?.TokenName = NameOf(NumberToken) Then
-                        Return New NumberToken(Convert.ToDouble(tkn.Contents) * -1)
+                        Return CType(tkn, NumberToken).SignChange()
                     Else
                         Throw New DSqlAnalysisException("前置き-が数字の前に置かれていません")
                     End If

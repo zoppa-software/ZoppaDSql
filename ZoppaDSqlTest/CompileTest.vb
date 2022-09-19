@@ -11,7 +11,20 @@ Namespace ZoppaDSqlTest
 
         <Fact>
         Public Sub WhereTrimTest()
-#If False Then
+            Dim query3 = "" &
+"select * from tb1
+{trim}
+where
+    ({if af}a = 1{end if} or {if bf}b = 2{end if}) and ({if cf}c = 3{end if} or {if df}d = 4{end if})
+{end trim}
+"
+            Dim ans6 = query3.Compile(New With {.af = True, .bf = False, .cf = False, .df = True})
+            Assert.Equal(ans6.Trim(),
+"select * from tb1
+where
+    (a = 1 ) and ( d = 4)")
+
+
             Dim query1 = "" &
 "select * from employees 
 {trim}
@@ -30,16 +43,15 @@ limit 10")
             Assert.Equal(ans2.Trim(),
 "select * from employees 
 where
-    emp_no < 20000
+    emp_no < 20000 
 limit 10")
 
             Dim ans3 = query1.Compile(New With {.empNo = False, .first_name = True, .gender = False})
             Assert.Equal(ans3.Trim(),
 "select * from employees 
 where
-    (first_name like 'A%')
+    (first_name like 'A%' )
 limit 10")
-#End If
 
             Dim query2 = "" &
 "select * from employees 
@@ -59,6 +71,9 @@ limit 10")
 where
     (emp_no = sysdate())
 limit 10")
+
+
+
         End Sub
 
         <Fact>
@@ -72,6 +87,23 @@ WHERE
     FirstName in ({trim}{foreach nm in names}#{nm}{}, {end for}{end trim})
 "
             Dim ans1 = query1.Compile(New With {.names = New String() {"Helena", "Dan", "Aaron"}})
+            Assert.Equal(ans1.Trim(),
+"SELECT
+    *
+FROM
+    customers 
+WHERE
+    FirstName in ('Helena', 'Dan', 'Aaron')")
+
+            Dim query2 = "" &
+"SELECT
+    *
+FROM
+    customers 
+WHERE
+    FirstName in (#{names})
+"
+            Dim ans2 = query2.Compile(New With {.names = New String() {"Helena", "Dan", "Aaron"}})
             Assert.Equal(ans1.Trim(),
 "SELECT
     *
@@ -126,6 +158,32 @@ WHERE
 
             Dim ans3 = "b = #{9 * num}".Compile(New With {.num = 3})
             Assert.Equal(ans3, "b = 27")
+        End Sub
+
+        <Fact>
+        Public Sub IfTest()
+            Dim query = "" &
+"select * from table1
+where
+  {if num = 1}col1 = #{num}
+  {else if num = 2}col2 = #{num}
+  {else}col3 = #{num}
+  {end if}"
+            Dim ans1 = query.Compile(New With {.num = 1})
+            Assert.Equal(ans1,
+"select * from table1
+where
+  col1 = 1")
+            Dim ans2 = query.Compile(New With {.num = 2})
+            Assert.Equal(ans2,
+"select * from table1
+where
+  col2 = 2")
+            Dim ans3 = query.Compile(New With {.num = 5})
+            Assert.Equal(ans3,
+"select * from table1
+where
+  col3 = 5")
         End Sub
 
     End Class

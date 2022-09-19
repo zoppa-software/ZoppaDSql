@@ -35,11 +35,19 @@ Namespace Analysis.Express
             Dim tml = Me.mTml?.Executes(env)
             Dim tmr = Me.mTmr?.Executes(env)
 
-            Try
-                Return New NumberToken(Convert.ToDouble(tml.Contents) - Convert.ToDouble(tmr.Contents))
-            Catch ex As Exception
-                Throw New DSqlAnalysisException($"減算ができません。{tml.Contents} - {tmr.Contents}", ex)
-            End Try
+            Dim nml = TryCast(tml, NumberToken)
+            Dim nmr = TryCast(tmr, NumberToken)
+            If nml IsNot Nothing AndAlso nmr IsNot Nothing Then
+                Return nml.MinusComputation(nmr)
+            Else
+                Try
+                    Dim lf = If(nml, NumberToken.Create(If(tml?.Contents.ToString(), "null")))
+                    Dim rt = If(nmr, NumberToken.Create(If(tmr?.Contents.ToString(), "null")))
+                    Return nml.MinusComputation(nmr)
+                Catch ex As Exception
+                    Throw New DSqlAnalysisException($"減算ができません。{tml.Contents} - {tmr.Contents}", ex)
+                End Try
+            End If
         End Function
 
         ''' <summary>文字列条件を取得します。</summary>

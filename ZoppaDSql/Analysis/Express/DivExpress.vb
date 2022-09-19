@@ -35,25 +35,18 @@ Namespace Analysis.Express
             Dim tml = Me.mTml?.Executes(env)
             Dim tmr = Me.mTmr?.Executes(env)
 
-            If tml?.TokenName = NameOf(NumberToken) AndAlso tmr?.TokenName = NameOf(NumberToken) Then
-                ' 左辺、右辺の数値を取得
-                Dim chv = 0.0
-                Dim prv = 0.0
+            Dim nml = TryCast(tml, NumberToken)
+            Dim nmr = TryCast(tmr, NumberToken)
+            If nml IsNot Nothing AndAlso nmr IsNot Nothing Then
+                Return nml.DivComputation(nmr)
+            Else
                 Try
-                    chv = Convert.ToDouble(tml.Contents)
-                    prv = Convert.ToDouble(tmr.Contents)
+                    Dim lf = If(nml, NumberToken.Create(If(tml?.Contents.ToString(), "null")))
+                    Dim rt = If(nmr, NumberToken.Create(If(tmr?.Contents.ToString(), "null")))
+                    Return nml.DivComputation(nmr)
                 Catch ex As Exception
                     Throw New DSqlAnalysisException($"除算ができません。{tml.Contents} / {tmr.Contents}", ex)
                 End Try
-
-                ' 除算を実行する
-                If Math.Abs(prv) > Double.Epsilon Then
-                    Return New NumberToken(chv / prv)
-                Else
-                    Throw New DivideByZeroException("0割が発生しました")
-                End If
-            Else
-                Throw New DSqlAnalysisException($"除算ができません。{tml.Contents} / {tmr.Contents}")
             End If
         End Function
 

@@ -7,8 +7,8 @@ Namespace Analysis.Tokens
     Public NotInheritable Class TrimToken
         Implements IToken
 
-        ''' <summary>末尾をトリムするならば真を返します。</summary>
-        Public ReadOnly Property IsTrimRight As Boolean
+        ''' <summary>末尾からトリムする文字列を返します。</summary>
+        Public ReadOnly Property TrimString As String
 
         ''' <summary>格納されている値を取得する。</summary>
         ''' <returns>格納値。</returns>
@@ -27,14 +27,14 @@ Namespace Analysis.Tokens
         End Property
 
         ''' <summary>コンストラクタ。</summary>
-        Private Sub New()
-            Me.IsTrimRight = True
+        Public Sub New()
+            Me.TrimString = ","
         End Sub
 
         ''' <summary>コンストラクタ。</summary>
-        ''' <param name="isRight">末尾をトリムするならば真。</param>
-        Public Sub New(isRight As Boolean)
-            Me.IsTrimRight = isRight
+        ''' <param name="trimStr">末尾からトリム文字。</param>
+        Public Sub New(trimStr As String)
+            Me.TrimString = trimStr
         End Sub
 
         ''' <summary>文字列条件を取得します。</summary>

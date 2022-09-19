@@ -4,8 +4,10 @@ Option Explicit On
 Imports System.Data.Common
 Imports System.IO
 Imports System.Linq.Expressions
+Imports System.Runtime.InteropServices
 Imports System.Text
 Imports System.Text.RegularExpressions
+Imports System.Windows
 Imports ZoppaDSql.Analysis.Environments
 Imports ZoppaDSql.Analysis.Express
 Imports ZoppaDSql.Analysis.Tokens
@@ -144,15 +146,16 @@ Namespace Analysis
                     Case NameOf(ReplaseToken)
                         Dim rtoken = chd.TargetToken.GetToken(Of ReplaseToken)()
                         If rtoken IsNot Nothing Then
-                            Dim ans = prm.GetValue(If(rtoken.Contents?.ToString(), ""))
-                            If TypeOf ans Is String AndAlso rtoken.IsEscape Then
-                                Dim s = ans.ToString()
-                                s = s.Replace("'"c, "''")
-                                s = s.Replace("\"c, "\\")
-                                ans = $"'{s}'"
-                            ElseIf ans Is Nothing Then
-                                ans = "null"
-                            End If
+                            Dim rval = prm.GetValue(If(rtoken.Contents?.ToString(), ""))
+                            'If TypeOf ans Is String AndAlso rtoken.IsEscape Then
+                            '    Dim s = ans.ToString()
+                            '    s = s.Replace("'"c, "''")
+                            '    s = s.Replace("\"c, "\\")
+                            '    ans = $"'{s}'"
+                            'ElseIf ans Is Nothing Then
+                            '    ans = "null"
+                            'End If
+                            Dim ans = GetRefValue(rval, rtoken.IsEscape)
                             buffer.Append(ans)
                             ansParts.Add(New EvaParts(chd.TargetToken, ans.ToString()))
                         End If
@@ -172,6 +175,33 @@ Namespace Analysis
                 End Select
             Loop
         End Sub
+
+        Private Function GetRefValue(ans As Object, isEscape As Boolean) As String
+            If TypeOf ans Is String AndAlso isEscape Then
+                Dim s = ans.ToString()
+                s = s.Replace("'"c, "''")
+                s = s.Replace("\"c, "\\")
+                Return $"'{s}'"
+
+            ElseIf TypeOf ans Is String Then
+                Return ans.ToString()
+
+            ElseIf TypeOf ans Is IEnumerable Then
+                Dim buf As New StringBuilder()
+                For Each itm In CType(ans, IEnumerable)
+                    If buf.Length > 0 Then
+                        buf.Append(", ")
+                    End If
+                    buf.Append(GetRefValue(itm, isEscape))
+                Next
+                Return buf.ToString()
+
+            ElseIf ans Is Nothing Then
+                Return "null"
+            Else
+                Return ans.ToString()
+            End If
+        End Function
 
         ''' <summary>Ifを評価します。</summary>
         ''' <param name="tmp">階層情報。</param>
@@ -305,34 +335,36 @@ Namespace Analysis
             ' トリムルールに従ってトリムします
             If subAnsParts.First().token.TokenName = NameOf(ForEachToken) AndAlso
                subAnsParts.Last().token.TokenName = NameOf(EndForToken) Then
-                Dim lastPos = 0
-                For i As Integer = subAnsParts.Count - 2 To 0 Step -1
-                    If subAnsParts(i).token.TokenName = NameOf(QueryToken) AndAlso subAnsParts(i).outString?.Trim() <> "" Then
-                        lastPos = i
-                        Exit For
-                    End If
+                RemoveTrimEndByForeach(trimToken.TargetToken.GetToken(Of TrimToken)(), subAnsParts)
+
+                For Each parts In subAnsParts
+                    ansParts.Add(parts)
+                    buffer.Append(parts.outString)
                 Next
-                For i As Integer = 0 To lastPos - 1
-                    ansParts.Add(subAnsParts(i))
-                    buffer.Append(subAnsParts(i).outString)
-                Next
+                'buffer.Append(subAnsParts(lastPos).outString.TrimEnd(trimTkn.TrimChars))
+
             ElseIf subAnsParts.First().token.TokenName = NameOf(QueryToken) AndAlso
                    subAnsParts.First().outString?.Trim().ToLower().StartsWith("where") Then
-                RemoveAndOrByWhere(subAnsParts)
-                RemoveParentByWhere(subAnsParts)
+                buffer.Append(RemoveAndOrByWhere(subAnsParts))
 
-                Dim tmp As New StringBuilder()
-                For Each tkn In subAnsParts
-                    If tkn.isOutpit Then
-                        ansParts.Add(tkn)
-                        tmp.Append(tkn.outString)
-                    End If
-                Next
+            ElseIf subAnsParts.First().token.TokenName = NameOf(QueryToken) AndAlso
+                   subAnsParts.First().outString?.Trim().ToLower().StartsWith("set") Then
+                'RemoveAndOrByWhere(subAnsParts)
+                'RemoveParentByWhere(subAnsParts)
 
-                Dim tmpstr = tmp.ToString()
-                If tmpstr.Trim().ToLower() <> "where" Then
-                    buffer.Append(tmpstr)
-                End If
+                'Dim tmp As New StringBuilder()
+                'For Each tkn In subAnsParts
+                '    If tkn.isOutpit Then
+                '        ansParts.Add(tkn)
+                '        tmp.Append(tkn.outString)
+                '    End If
+                'Next
+
+                'Dim tmpstr = tmp.ToString()
+                'If tmpstr.Trim().ToLower() <> "where" Then
+                '    buffer.Append(tmpstr)
+                'End If
+
             Else
                 For Each tkn In subAnsParts
                     ansParts.Add(tkn)
@@ -341,97 +373,215 @@ Namespace Analysis
             End If
         End Sub
 
+        Private Sub RemoveTrimEndByForeach(trimTkn As TrimToken, ansParts As List(Of EvaParts))
+            For i As Integer = ansParts.Count - 1 To 0 Step -1
+                If ansParts(i).token.TokenName = NameOf(QueryToken) AndAlso Not ansParts(i).IsSpace Then
+                    Dim str = ansParts(i).outString.TrimEnd()
+                    If str.EndsWith(",") Then
+                        ansParts(i).outString = str.Substring(0, str.Length - ",".Length)
+                    End If
+                    Exit For
+                End If
+            Next
+        End Sub
+
         ''' <summary>
         ''' 
         ''' </summary>
         ''' <param name="ansParts"></param>
-        Private Sub RemoveAndOrByWhere(ansParts As List(Of EvaParts))
-            Dim regexchk As New Regex("(\)\s*)*(and|or)(\s*\()*", RegexOptions.IgnoreCase Or RegexOptions.Compiled)
-            Dim checked As New HashSet(Of Integer)()
-            Dim nxtTry = False
-            Do
-                nxtTry = False
-
-                For ptr As Integer = 0 To ansParts.Count - 1
-                    If ansParts(ptr).token.TokenName = NameOf(EndIfToken) AndAlso Not checked.Contains(ptr) Then
-                        checked.Add(ptr)
-
-                        Dim stTkn = ansParts(ptr)
-                        Dim edTkn As EvaParts = Nothing
-                        Dim edPtr As Integer = 0
-                        For i As Integer = ptr + 1 To ansParts.Count - 1
-                            If (ansParts(i).token.TokenName = NameOf(IfToken) OrElse
-                                ansParts(i).token.TokenName = NameOf(ElseToken) OrElse
-                                ansParts(i).token.TokenName = NameOf(ElseIfToken)) AndAlso Not checked.Contains(i) Then
-                                edTkn = ansParts(i)
-                                edPtr = i
-                                Exit For
-                            End If
-                        Next
-
-                        If edTkn IsNot Nothing Then
-                            If (Not stTkn.isOutpit OrElse Not edTkn.isOutpit) AndAlso ptr = edPtr - 2 Then
-                                Dim srcstr = ansParts(ptr + 1).outString
-                                Dim match = regexchk.Match(srcstr)
-                                If match.Success AndAlso match.Groups(2).Success Then
-                                    With match.Groups(2)
-                                        srcstr = srcstr.Remove(.Index, .Length)
-                                    End With
+        Private Function RemoveAndOrByWhere(ansParts As List(Of EvaParts)) As String
+            Dim copyParts As New List(Of EvaParts)()
+            Dim partsLink As New Dictionary(Of EvaParts, List(Of EvaParts))()
+            For Each ps In ansParts
+                If ps.token.TokenName = NameOf(QueryToken) Then
+                    Dim ch = ps.outString.ToArray()
+                    Dim i As Integer = 0
+                    Dim tokens As New List(Of (str As String, keywd As Boolean, space As Boolean))()
+                    Do While i < ch.Length
+                        If ch(i) = "("c Then
+                            tokens.Add(("(", True, False))
+                            i += 1
+                        ElseIf ch(i) = ")"c Then
+                            tokens.Add((")", True, False))
+                            i += 1
+                        ElseIf Char.IsWhiteSpace(ch(i)) Then
+                            Dim buf As New StringBuilder()
+                            For j As Integer = i To ch.Length - 1
+                                If Char.IsWhiteSpace(ch(j)) Then
+                                    buf.Append(ch(j))
+                                    i = i + 1
+                                Else
+                                    Exit For
                                 End If
-                                ansParts(ptr + 1).isOutpit = (srcstr.Trim() <> "")
-                                ansParts(ptr + 1).outString = srcstr
-                            End If
-                            For i As Integer = ptr To edPtr
-                                checked.Add(i)
                             Next
+                            tokens.Add((buf.ToString(), False, True))
+                        Else
+                            Dim buf As New StringBuilder()
+                            For j As Integer = i To ch.Length - 1
+                                If Not Char.IsWhiteSpace(ch(j)) OrElse ch(j) = "("c OrElse ch(j) = ")"c Then
+                                    buf.Append(ch(j))
+                                    i = i + 1
+                                Else
+                                    Exit For
+                                End If
+                            Next
+                            Dim str = buf.ToString()
+                            tokens.Add((str, str.ToLower() = "and" OrElse str.ToLower() = "or", False))
                         End If
-                        nxtTry = True
-                        Exit For
-                    End If
-                Next
-            Loop While nxtTry
-        End Sub
+                    Loop
 
-        ''' <summary>
-        ''' 
-        ''' </summary>
-        ''' <param name="ansParts"></param>
-        Private Sub RemoveParentByWhere(ansParts As List(Of EvaParts))
-            Dim nxtTry = False
-            Do
-                nxtTry = False
+                    Dim cnt As Integer = 0
+                    Dim def = New Integer(tokens.Count - 1) {}
+                    For j As Integer = 0 To tokens.Count - 1
+                        If tokens(j).keywd Then
+                            If j > 0 AndAlso Not tokens(j - 1).keywd Then cnt += 1
+                            def(j) = cnt
+                            cnt += 1
+                        ElseIf tokens(j).space AndAlso (j = 0 OrElse tokens(j - 1).keywd) AndAlso (j = tokens.Count - 1 OrElse tokens(j + 1).keywd) Then
+                            def(j) = cnt
+                            cnt += 1
+                        Else
+                            def(j) = cnt
+                        End If
+                    Next
 
-                For ptr As Integer = 1 To ansParts.Count - 2
-                    Dim ifTkn = ansParts(ptr)
-                    If ifTkn.token.TokenName = NameOf(IfToken) AndAlso Not ifTkn.isOutpit Then
-                        Dim prevTkn = ansParts(ptr - 1)
-                        Dim nextTkn As EvaParts = Nothing
-                        For i As Integer = ptr + 1 To ansParts.Count - 1
-                            If ansParts(i).isOutpit Then
-                                nextTkn = ansParts(i)
+                    Dim children As New List(Of EvaParts)()
+                    i = 0
+                    Do While i < tokens.Count
+                        Dim buf As New StringBuilder()
+                        buf.Append(tokens(i).str)
+                        i += 1
+                        For j As Integer = i To tokens.Count - 1
+                            If def(j - 1) = def(j) Then
+                                buf.Append(tokens(j).str)
+                                i += 1
+                            Else
                                 Exit For
                             End If
                         Next
+                        children.Add(New EvaParts(ps.token, buf.ToString()))
+                    Loop
+                    copyParts.AddRange(children)
+                    partsLink.Add(ps, children)
+                Else
+                    copyParts.Add(ps)
+                End If
+            Next
 
-                        If prevTkn.token.TokenName = NameOf(QueryToken) AndAlso
-                           prevTkn.outString.Trim().EndsWith("(") AndAlso
-                           nextTkn IsNot Nothing AndAlso
-                           nextTkn.token.TokenName = NameOf(QueryToken) AndAlso
-                           nextTkn.outString.Trim().StartsWith(")") Then
-                            Dim si = prevTkn.outString.LastIndexOf("(")
-                            prevTkn.outString = prevTkn.outString.Remove(si, 1)
-                            prevTkn.isOutpit = (prevTkn.outString.Trim() <> "")
+            Dim parts = New EvaPartsPointer(copyParts)
+            Do While parts.HasNext
+                If parts.Current.IsSpace Then
+                    parts.Move()
+                ElseIf parts.Current.outString.Trim().ToLower().StartsWith("where") Then
+                    parts.Move()
+                    Exit Do
+                Else
+                    Exit Do
+                End If
+            Loop
 
-                            Dim ei = nextTkn.outString.IndexOf(")")
-                            nextTkn.outString = nextTkn.outString.Remove(ei, 1)
-                            nextTkn.isOutpit = (nextTkn.outString.Trim() <> "")
+            LogicalTrim(parts)
 
-                            nxtTry = True
+            Dim tmp As New StringBuilder()
+            For Each tkn In parts.parts
+                If tkn.isOutpit Then
+                    ansParts.Add(tkn)
+                    tmp.Append(tkn.outString)
+                End If
+            Next
+
+            Dim tmpstr = tmp.ToString()
+            If tmpstr.Trim().ToLower() <> "where" Then
+                For Each parent In partsLink.Keys
+                    Dim buf As New StringBuilder()
+                    Dim view = False
+                    For Each ch In partsLink(parent)
+                        If ch.isOutpit Then
+                            buf.Append(ch.outString)
+                            view = True
                         End If
+                    Next
+                    parent.outString = buf.ToString()
+                    parent.isOutpit = view
+                Next
+                Return tmpstr
+            Else
+                For Each ps In ansParts
+                    ps.isOutpit = False
+                Next
+                Return ""
+            End If
+        End Function
+
+        Private Function LogicalTrim(parts As EvaPartsPointer) As Boolean
+            Dim tml = FactorTrim(parts)
+            Do While parts.HasNext
+                Dim ope = parts.Current
+                If ope.outString.ToLower() = "and" OrElse
+                   ope.outString.ToLower() = "or" Then
+                    parts.Move()
+                    Dim tmr = FactorTrim(parts)
+                    If Not tml OrElse Not tmr Then
+                        ope.isOutpit = False
+                    End If
+                    tml = tml Or tmr
+                Else
+                    Exit Do
+                End If
+            Loop
+            Return tml
+        End Function
+
+        Private Function FactorTrim(parts As EvaPartsPointer) As Boolean
+            Dim facts As New List(Of EvaParts)()
+            Dim isOut As Boolean = True
+            Do While parts.HasNext
+                If parts.Current.outString = "(" Then
+                    isOut = isOut And ParenTrim(parts)
+                ElseIf parts.Current.outString = ")" Then
+                    Exit Do
+                ElseIf parts.Current.outString.ToLower() = "and" OrElse
+                       parts.Current.outString.ToLower() = "or" Then
+                    Exit Do
+                Else
+                    facts.Add(parts.Current)
+                    isOut = isOut And parts.Current.isOutpit
+                    parts.Move()
+                End If
+            Loop
+
+            If isOut Then
+                Return True
+            Else
+                For Each pt In facts
+                    If Not pt.IsSpace AndAlso pt.isOutpit Then
+                        Return True
                     End If
                 Next
-            Loop While nxtTry
-        End Sub
+                For Each pt In facts
+                    pt.isOutpit = False
+                Next
+                Return False
+            End If
+        End Function
+
+        Private Function ParenTrim(parts As EvaPartsPointer) As Boolean
+            Dim lParen = parts.Current
+            parts.Move()
+
+            Dim isOut = LogicalTrim(parts)
+
+            Dim rParen = parts.Current
+            parts.Move()
+
+            If isOut Then
+                Return True
+            Else
+                lParen.isOutpit = False
+                rParen.isOutpit = False
+                Return False
+            End If
+        End Function
 
         ''' <summary>式を解析して結果を取得します。</summary>
         ''' <param name="expression">式文字列。</param>
@@ -506,6 +656,34 @@ Namespace Analysis
             Return New ParenExpress(nxtParser.Parser(New TokenStream(tmp)))
         End Function
 
+        Private Class EvaPartsPointer
+
+            Public parts As List(Of EvaParts)
+
+            Public index As Integer = 0
+
+            Public ReadOnly Property Current As EvaParts
+                Get
+                    Return Me.parts(Me.index)
+                End Get
+            End Property
+
+            Public ReadOnly Property HasNext As Boolean
+                Get
+                    Return Me.index < Me.parts.Count
+                End Get
+            End Property
+
+            Public Sub New(srcParts As List(Of EvaParts))
+                Me.parts = New List(Of EvaParts)(srcParts)
+            End Sub
+
+            Public Sub Move()
+                Me.index += 1
+            End Sub
+
+        End Class
+
         Private NotInheritable Class EvaParts
 
             Public ReadOnly token As TokenPosition
@@ -525,6 +703,12 @@ Namespace Analysis
                 End Get
             End Property
 
+            Public ReadOnly Property IsSpace As Boolean
+                Get
+                    Return (Me.outString?.Trim() = "")
+                End Get
+            End Property
+
             Public Sub New(tkn As TokenPosition)
                 Me.token = tkn
                 Me.isOutpit = False
@@ -536,6 +720,10 @@ Namespace Analysis
                 Me.isOutpit = True
                 Me.outString = outStr
             End Sub
+
+            Public Overrides Function ToString() As String
+                Return $"{Me.outString} view:{Me.isOutpit} ctrl:{Me.IsControlToken}"
+            End Function
 
         End Class
 

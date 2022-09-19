@@ -3,6 +3,7 @@ Option Explicit On
 
 Imports ZoppaDSql.Analysis.Environments
 Imports ZoppaDSql.Analysis.Tokens
+Imports ZoppaDSql.Analysis.Tokens.NumberToken
 
 Namespace Analysis.Express
 
@@ -32,7 +33,6 @@ Namespace Analysis.Express
                     Dim obj = env.GetValue(If(Me.mToken.Contents?.ToString(), ""))
                     If TypeOf obj Is String Then
                         Return New StringToken(obj.ToString())
-
                     ElseIf TypeOf obj Is Int32 OrElse
                            TypeOf obj Is Double OrElse
                            TypeOf obj Is Decimal OrElse
@@ -44,10 +44,11 @@ Namespace Analysis.Express
                            TypeOf obj Is Byte OrElse
                            TypeOf obj Is Int64 OrElse
                            TypeOf obj Is Int16 Then
-                        Return New NumberToken(Convert.ToDouble(obj))
+                        Return NumberToken.ConvertToken(obj)
                     Else
                         Return New ObjectToken(obj)
                     End If
+
                 Case Else
                     Return Me.mToken
             End Select

@@ -36,8 +36,10 @@ Namespace Analysis.Express
             Dim tmr = Me.mTmr?.Executes(env)
 
             ' 左右辺の値が誤差未満なら等しいためFalse
-            If TypeOf tml?.Contents Is Double AndAlso TypeOf tmr?.Contents Is Double Then
-                If EqualDouble(tml, tmr) Then
+            Dim nml = TryCast(tml, NumberToken)
+            Dim nmr = TryCast(tmr, NumberToken)
+            If nml IsNot Nothing AndAlso nmr IsNot Nothing Then
+                If nml.EqualCondition(nmr) Then
                     Return FalseToken.Value
                 End If
             End If

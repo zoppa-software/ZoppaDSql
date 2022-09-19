@@ -4,6 +4,7 @@ Imports Xunit
 Imports ZoppaDSql.Analysis.Express
 Imports ZoppaDSql.Analysis
 Imports ZoppaDSql.Analysis.Environments
+Imports ZoppaDSql.Analysis.Tokens
 
 Namespace ZoppaDSqlTest
     Public Class AnalysisTest
@@ -92,22 +93,22 @@ Namespace ZoppaDSqlTest
 
         <Fact>
         Sub Expression2Test()
-            Dim a101 = "100 - 99.9".Executes().Contents
-            Assert.True(Math.Abs(a101 - 0.1) < 0.0000000000001)
-            Dim a102 = "46 - 12".Executes().Contents
-            Assert.Equal(a102, 34)
-            Dim a103 = "-2 - -2".Executes().Contents
-            Assert.Equal(a103, 0)
+            Dim a101 = "100 - 99.9".Executes()
+            Assert.True(NumberToken.ConvertToken(0.1).EqualCondition(a101))
+            Dim a102 = "46 - 12".Executes()
+            Assert.True(NumberToken.ConvertToken(34).EqualCondition(a102))
+            Dim a103 = "-2 - -2".Executes()
+            Assert.True(NumberToken.ConvertToken(0).EqualCondition(a103))
 
-            Dim a201 = "0.1 * 6".Executes().Contents
-            Assert.True(Math.Abs(a201 - 0.6) < 0.0000000000001)
-            Dim a202 = "26 * 2".Executes().Contents
-            Assert.Equal(a202, 52)
-            Dim a203 = "-2 * -2".Executes().Contents
-            Assert.Equal(a203, 4)
+            Dim a201 = "0.1 * 6".Executes()
+            Assert.True(NumberToken.ConvertToken(0.6).EqualCondition(a201))
+            Dim a202 = "26 * 2".Executes()
+            Assert.True(NumberToken.ConvertToken(52).EqualCondition(a202))
+            Dim a203 = "-2 * -2".Executes()
+            Assert.True(NumberToken.ConvertToken(4).EqualCondition(a203))
 
-            Dim a301 = "100 / 25".Executes().Contents
-            Assert.Equal(a301, 4)
+            Dim a301 = "100 / 25".Executes()
+            Assert.True(NumberToken.ConvertToken(4).EqualCondition(a301))
 
             Dim a401 = "'“' + '‘¾˜Y'".Executes().Contents
             Assert.Equal(a401, "“‘¾˜Y")

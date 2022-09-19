@@ -40,7 +40,8 @@ limit 10
 ### SQL文に置き換え式、制御式を埋め込む
 SQL文を部分的に置き換える（置き換え式）、また、部分的に除外するや繰り返すなど（制御式）を埋め込みます。  
 埋め込みは `#{` *参照するプロパティ* `}`、`{` *制御式* `}` の形式で記述します。  
-* 埋め込み式  
+  
+#### 埋め込み式  
 `#{` *参照するプロパティ* `}` を使用すると、`Compile`で引き渡したオブジェクトのプロパティを参照して置き換えます。  
 以下は文字列プロパティを参照しています。 `'`で囲まれて出力していることに注目してください。   
 ``` vb
@@ -63,6 +64,51 @@ Assert.Equal(ansnull, "set col1 = null")
 Dim ansstr2 = "select * from !{table}".Compile(New With {.table = "sample_table"})
 Assert.Equal(ansstr2, "select * from sample_table")
 ```
+
+#### 制御式  
+SQL文を部分的に除外、または繰り返すなど制御を行います。  
+  
+* **if文**  
+条件が真であるならば、その部分を出力します。  
+`{if 条件式}`、`{else if 条件式}`、`{else}`、`{end if}`で囲まれた部分を判定します。  
+以下の例を参照してください。  
+``` vb
+Dim query = "" &
+"select * from table1
+where
+  {if num = 1}col1 = #{num}
+  {else if num = 2}col2 = #{num}
+  {else}col3 = #{num}
+  {end if}"
+
+' num = 1 ならば {if num = 1}の部分を出力
+Dim ans1 = query.Compile(New With {.num = 1})
+Assert.Equal(ans1,
+"select * from table1
+where
+  col1 = 1")
+
+' num = 2 ならば {else if num = 2}の部分を出力
+Dim ans2 = query.Compile(New With {.num = 2})
+Assert.Equal(ans2,
+"select * from table1
+where
+  col2 = 2")
+
+' num = 5 ならば {else}の部分を出力
+Dim ans3 = query.Compile(New With {.num = 5})
+Assert.Equal(ans3,
+"select * from table1
+where
+  col3 = 5")
+```
+  
+* **foreach文**  
+
+  
+* **trim文**  
+**注意！、trim処理は仕様が複雑なので期待している結果が得られないかもしれません。**
+
 
 ### SQL文を動的にコンパイルする
 ### SQLクエリを実行し、簡単なマッパー機能を使用してインスタンスを生成する

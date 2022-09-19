@@ -35,10 +35,12 @@ Namespace Analysis.Express
             Dim tml = Me.mTml?.Executes(env)
             Dim tmr = Me.mTmr?.Executes(env)
 
+            Dim nml = TryCast(tml, NumberToken)
+            Dim nmr = TryCast(tmr, NumberToken)
             Dim bval As Boolean = False
-            If TypeOf tml?.Contents Is Double AndAlso TypeOf tmr?.Contents Is Double Then
+            If nml IsNot Nothing AndAlso nmr IsNot Nothing Then
                 ' 数値比較
-                bval = EqualDouble(tml, tmr)
+                bval = nml.EqualCondition(nmr)
             ElseIf tml?.Contents Is Nothing AndAlso tmr?.Contents Is Nothing Then
                 ' 両方 Null比較
                 bval = True

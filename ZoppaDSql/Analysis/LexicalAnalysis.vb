@@ -113,12 +113,10 @@ Namespace Analysis
                 Return New ForEachToken(SplitToken(codeStr.Substring(8)))
             ElseIf lowStr.StartsWith("end for") Then
                 Return EndForToken.Value
+            ElseIf lowStr.StartsWith("trim ") Then
+                Return New TrimToken(codeStr.Substring(5))
             ElseIf lowStr.StartsWith("trim") Then
-                Return New TrimToken(True)
-            ElseIf lowStr.StartsWith("trim left") Then
-                Return New TrimToken(False)
-            ElseIf lowStr.StartsWith("trim right") Then
-                Return New TrimToken(True)
+                Return New TrimToken()
             ElseIf lowStr.StartsWith("end trim") Then
                 Return EndTrimToken.Value
             Else
@@ -343,7 +341,7 @@ Namespace Analysis
                 End If
             Loop
 
-            Return New NumberToken(res.ToString())
+            Return NumberToken.Create(res.ToString())
         End Function
 
         ''' <summary>識別子トークンを生成します。</summary>
