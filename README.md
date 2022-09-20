@@ -104,7 +104,39 @@ where
 ```
   
 * **foreach文**  
-
+パラメータの要素分、出力を繰り返します。  
+`{foreach 一時変数 in パラメータ(配列など)}`、`{end for}`で囲まれた範囲を繰り返します。一時変数に要素が格納されるので foreachの範囲内で置き換え式を使用して出力してください。    
+``` vb
+"SELECT
+    *
+FROM
+    customers 
+WHERE
+    FirstName in ({trim}{foreach nm in names}#{nm}, {end for}{end trim})
+".Compile(New With {.names = New String() {"Helena", "Dan", "Aaron"}})
+```
+上記の例では foreachで囲まれた範囲の文、`#{nm}, `がパラメータ`names`の要素数分("Helena", "Dan", "Aaron")を繰り返して出力します。  
+(お気づきのとおり、最後の要素では`,`が不要に出力されます、この`,`を取り除くのが **trim**文です)  
+出力は以下のとおりです。  
+``` vb
+SELECT
+    *
+FROM
+    customers 
+WHERE
+    FirstName in ('Helena', 'Dan', 'Aaron')
+```
+ただし、このような場合、通常の置き換え式で配列など繰り返し要素を与えれば `,` で結合して置き換えるように実装しています。  
+以下の例は上記と同じ結果を出力します。  
+``` vb
+SELECT
+    *
+FROM
+    customers 
+WHERE
+    FirstName in (#{names})
+".Compile(New With {.names = New String() {"Helena", "Dan", "Aaron"}})
+```
   
 * **trim文**  
 **注意！、trim処理は仕様が複雑なので期待している結果が得られないかもしれません。**
