@@ -142,11 +142,64 @@ WHERE
 **注意！、trim処理は仕様が複雑なので期待している結果が得られないかもしれません。**
 
 
-### SQL文を動的にコンパイルする
 ### SQLクエリを実行し、簡単なマッパー機能を使用してインスタンスを生成する
+#### 基本的な使い方
+動的に生成したSQL文をDapperやEntity Frameworkで利用することができます。  
+また、簡単に利用するために [IDbConnection](https://learn.microsoft.com/ja-jp/dotnet/api/system.data.idbconnection)の拡張メソッド、および、シンプルなマッピング処理を用意しています。  
+  
+以下の例は、パラメータの`seachId`が`NULL`以外ならば、`ArtistId`が`seachId`と等しいことという動的SQLを `query`変数に格納しました。
+``` vb
+Dim query = "" &
+"select
+  albumid, title, name
+from
+  albums
+inner join artists on
+  albums.ArtistId = artists.ArtistId
+where
+  {if seachId <> NULL }albums.ArtistId = @seachId{end if}"
+```
+次に、SQLiteの`IDbConnection`の実装である`SQLiteConnection`をOpenした後、`ExecuteRecordsSync`拡張メソッドを実行するとSQLの実行結果が`AlbumInfo`クラスのリストで取得できます。  
+``` vb
+Dim answer As List(Of AlbumInfo)
+Using sqlite As New SQLiteConnection("Data Source=chinook.db")
+    sqlite.Open()
+
+    answer = Await sqlite.ExecuteRecordsSync(Of AlbumInfo)(query, New With {.seachId = 11})
+    ' answerにSQLの実行結果が格納されます
+End Using
+```
+`AlbumInfo`クラスの実装は以下のとおりです。  
+マッピングは一般的にはプロパティ、フィールドをマッピングしますが、ZoppaDSqlはSQLの実行結果の各カラムの型と一致する**コンストラクタ**を検索してインスタンスを生成します。  
+``` vb
+Public Class AlbumInfo
+    Public ReadOnly Property AlbumId As Integer
+    Public ReadOnly Property AlbumTitle As String
+    Public ReadOnly Property ArtistName As String
+
+    Public Sub New(id As Long, title As String, nm As String)
+        Me.AlbumId = id
+        Me.AlbumTitle = title
+        Me.ArtistName = nm
+    End Sub
+End Class
+```
+#### SQL実行設定
+トランザクション、SQLタイムアウトの設定も拡張メソッドで行います。  
 ### パラメータにCSVファイルを与えてSQLクエリを実行します
-### 付属機能
 ### ログファイル出力機能を有効にします
+動的SQLを使用したとき、生成されたSQL文を確認したい時があります。そのためにZoppaDSqlではログファイル出力機能があります。  
+デフォルトのログファイル出力機能を有効にするには以下のコードを実行します。引数にログファイルパスを指定するとログファイルを変更することができます。初期値はカレントディレクトリの`zoppa_dsql.txt`ファイルに出力されます。  
+``` vb
+ZoppaDSqlManager.UseDefaultLogger()
+```  
+ログの出力は別スレッドで行っているため、アプリケーション終了前などに出力完了を待機してください。
+``` vb
+ZoppaDSqlManager.LogWaitFinish()
+```  
+別のログ出力機能を使用する場合は、`ZoppaDSql.ILogWriter`インターフェイスを実装したクラスを定義して、`ZoppaDSql.SetCustomLogger`で設定してください。
+
+### 付属機能
 #### 簡単な式を評価し、結果を得ることができます
 #### カンマ区切りで文字列を分割できます
 #### CSVファイルを読み込みます
@@ -155,8 +208,6 @@ WHERE
 ## インストール
 ソースをビルドして `ZoppaDSql.dll` ファイルを生成して参照してください。  
 Nugetにライブラリを公開しています。[ZoppaDSql](https://www.nuget.org/packages/ZoppaDSql/#readme-body-tab)を参照してください。
-
-## 注意点
 
 ## 作成情報
 * 造田　崇（zoppa software）
