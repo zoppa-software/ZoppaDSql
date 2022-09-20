@@ -33,7 +33,7 @@ limit 10
 * select、insert、update、delete を文字列検索すれはデータベース処理を検索できます  
 
 ## 依存関係
-ライブラリは .NET Standard 2.0 で記述しています。そのため、.net framework 4.5以降、.net core 4以降で使用できます。  
+ライブラリは .NET Standard 2.0 で記述しています。そのため、.net framework 4.6.1以降、.net core 2.0以降で使用できます。  
 その他のライブラリへの依存関係はありません。
 
 ## 使い方
