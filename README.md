@@ -140,6 +140,18 @@ WHERE
   
 * **trim文**  
 **注意！、trim処理は仕様が複雑なので期待している結果が得られないかもしれません。**
+#### 通常のtrimの使い方
+`{trim}`～`{end trim}`で囲まれた範囲は前後の空白をトリムします。  
+``` vb
+Dim ans1 = "{trim}   a = #{12 * 13}   {end trim}".Compile()
+Assert.Equal(ans1, "a = 156")
+```
+それに加えて、`{trim `文字列`}`と指定すると、末尾が指定した文字列ならば削除します。  
+``` vb
+Dim ans2 = "{trim trush}   a = #{'11' + '29'}trush{end trim}".Compile()
+Assert.Equal(ans2, "a = '1129'")
+```
+#### foreach文と組み合わせたtrimの使い方
 
 
 ### SQLクエリを実行し、簡単なマッパー機能を使用してインスタンスを生成する
