@@ -123,11 +123,18 @@ Namespace Csv
             Next
         End Function
 
+        ''' <summary>指定した型のコンストラクタでインスタンスを生成し取得するクエリ。</summary>
+        ''' <typeparam name="T">変換後の型。</typeparam>
+        ''' <param name="columTypes">コンストラクタの引数。</param>
+        ''' <returns>変換後型の列挙子。</returns>
         Public Iterator Function SelectCsv(Of T)(ParamArray columTypes As ICsvType()) As IEnumerable(Of T)
+            ' 引数の配列を作成
             Dim clmTps = columTypes.Select(Function(v) v.ColumnType).ToArray()
 
+            ' コンストラクタを取得する
             Dim constructor = GetConstructor(Of T)(clmTps)
 
+            ' インスタンスを生成しながら返す
             Dim fields As New ArrayList()
             For Each item In Me
                 SetFields(columTypes, item, fields)
@@ -140,7 +147,8 @@ Namespace Csv
         ''' <param name="condition">条件判定するラムダ式。</param>
         ''' <param name="func">変換するためのラムダ式。</param>
         ''' <returns>変換後型の列挙子。</returns>
-        Public Iterator Function WhereCsv(Of TResult)(condition As Func(Of Integer, List(Of CsvItem), Boolean), func As Func(Of Integer, List(Of CsvItem), TResult)) As IEnumerable(Of TResult)
+        Public Iterator Function WhereCsv(Of TResult)(condition As Func(Of Integer, List(Of CsvItem), Boolean),
+                                                      func As Func(Of Integer, List(Of CsvItem), TResult)) As IEnumerable(Of TResult)
             For Each item In Me
                 If condition(item.Row, item.Items) Then
                     Yield func(item.Row, item.Items)
@@ -148,12 +156,20 @@ Namespace Csv
             Next
         End Function
 
+        ''' <summary>条件に一致した行を指定した型のコンストラクタでインスタンスを生成し取得するクエリ。</summary>
+        ''' <typeparam name="T">変換後の型。</typeparam>
+        ''' <param name="condition">条件判定するラムダ式。</param>
+        ''' <param name="columTypes">コンストラクタの引数。</param>
+        ''' <returns>変換後型の列挙子。</returns>
         Public Iterator Function WhereCsv(Of T)(condition As Func(Of Integer, List(Of CsvItem), Boolean),
                                                 ParamArray columTypes As ICsvType()) As IEnumerable(Of T)
+            ' 引数の配列を作成
             Dim clmTps = columTypes.Select(Function(v) v.ColumnType).ToArray()
 
+            ' コンストラクタを取得する
             Dim constructor = GetConstructor(Of T)(clmTps)
 
+            ' インスタンスを生成しながら返す
             Dim fields As New ArrayList()
             For Each item In Me
                 If condition(item.Row, item.Items) Then
@@ -163,11 +179,18 @@ Namespace Csv
             Next
         End Function
 
+        ''' <summary>コンストラクタの参照を取得します。</summary>
+        ''' <typeparam name="T">コンストラクタを取得する型。</typeparam>
+        ''' <param name="clmTps">コンストラクタの引数。</param>
+        ''' <returns>コンストラクタの参照。</returns>
         Private Shared Function GetConstructor(Of T)(clmTps() As Type) As ConstructorInfo
+            ' コンストラクタの参照を取得
             Dim constructor = GetType(T).GetConstructor(clmTps)
             If constructor Is Nothing Then
                 constructor = GetType(T).GetConstructor(New Type() {GetType(Object())})
             End If
+
+            ' 取得できなければエラー
             If constructor Is Nothing Then
                 Dim info = String.Join(",", clmTps.Select(Function(c) c.Name).ToArray())
                 Throw New CsvException($"取得データに一致するコンストラクタがありません:{info}")
@@ -175,6 +198,10 @@ Namespace Csv
             Return constructor
         End Function
 
+        ''' <summary>変換方法に従って項目変換したリストを返す。</summary>
+        ''' <param name="columTypes">列の変換方法。</param>
+        ''' <param name="item">変換する項目。</param>
+        ''' <param name="fields">リスト（戻り値）</param>
         Private Shared Sub SetFields(columTypes As ICsvType(), item As Pointer, fields As ArrayList)
             fields.Clear()
             For i As Integer = 0 To Math.Min(columTypes.Length, item.Items.Count) - 1

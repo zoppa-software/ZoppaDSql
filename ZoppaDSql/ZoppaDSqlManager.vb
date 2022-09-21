@@ -240,9 +240,9 @@ Public Module ZoppaDSqlManager
                                          dynamicParameter As Object,
                                          ParamArray sqlParameter As Object()) As List(Of T)
         Try
-            LoggingDebug($"Execute SQL : {query}")
-            LoggingDebug($"Use Transaction : {setting.Transaction IsNot Nothing}")
-            LoggingDebug($"Timeout seconds : {setting.TimeOutSecond}")
+            LoggingInformation($"Execute SQL : {query}")
+            LoggingInformation($"Use Transaction : {setting.Transaction IsNot Nothing}")
+            LoggingInformation($"Timeout seconds : {setting.TimeOutSecond}")
             Dim varFormat = GetVariantFormat(setting.ParameterPrefix)
 
             Dim recoreds As New List(Of T)()
@@ -257,7 +257,7 @@ Public Module ZoppaDSqlManager
 
                 ' SQLクエリを設定
                 command.CommandText = ParserAnalysis.Replase(query, dynamicParameter)
-                LoggingDebug($"Answer SQL : {command.CommandText}")
+                LoggingInformation($"Answer SQL : {command.CommandText}")
 
                 ' SQLパラメータが空なら動的パラメータを展開
                 If dynamicParameter IsNot Nothing AndAlso sqlParameter.Length = 0 Then
@@ -422,9 +422,9 @@ Public Module ZoppaDSqlManager
                                          csvStream As CsvReaderStream,
                                          csvParameter As CsvParameterBuilder) As List(Of T)
         Try
-            LoggingDebug($"Execute SQL : {query}")
-            LoggingDebug($"Use Transaction : {setting.Transaction IsNot Nothing}")
-            LoggingDebug($"Timeout seconds : {setting.TimeOutSecond}")
+            LoggingInformation($"Execute SQL : {query}")
+            LoggingInformation($"Use Transaction : {setting.Transaction IsNot Nothing}")
+            LoggingInformation($"Timeout seconds : {setting.TimeOutSecond}")
             Dim varFormat = GetVariantFormat(setting.ParameterPrefix)
 
             Dim recoreds As New List(Of T)()
@@ -439,7 +439,7 @@ Public Module ZoppaDSqlManager
 
                 ' SQLクエリを設定
                 command.CommandText = ParserAnalysis.Replase(query, dynamicParameter)
-                LoggingDebug($"Answer SQL : {command.CommandText}")
+                LoggingInformation($"Answer SQL : {command.CommandText}")
 
                 ' パラメータの定義を設定
                 SetSqlParameterDefine(command, csvParameter, varFormat)
@@ -557,9 +557,9 @@ Public Module ZoppaDSqlManager
                                          sqlParameter As Object(),
                                          createrMethod As Func(Of Object(), T)) As List(Of T)
         Try
-            LoggingDebug($"Execute SQL : {query}")
-            LoggingDebug($"Use Transaction : {setting.Transaction IsNot Nothing}")
-            LoggingDebug($"Timeout seconds : {setting.TimeOutSecond}")
+            LoggingInformation($"Execute SQL : {query}")
+            LoggingInformation($"Use Transaction : {setting.Transaction IsNot Nothing}")
+            LoggingInformation($"Timeout seconds : {setting.TimeOutSecond}")
             Dim varFormat = GetVariantFormat(setting.ParameterPrefix)
 
             Dim recoreds As New List(Of T)()
@@ -574,7 +574,7 @@ Public Module ZoppaDSqlManager
 
                 ' SQLクエリを設定
                 command.CommandText = ParserAnalysis.Replase(query, dynamicParameter)
-                LoggingDebug($"Answer SQL : {command.CommandText}")
+                LoggingInformation($"Answer SQL : {command.CommandText}")
 
                 ' SQLパラメータが空なら動的パラメータを展開
                 If dynamicParameter IsNot Nothing AndAlso sqlParameter.Length = 0 Then
@@ -749,9 +749,9 @@ Public Module ZoppaDSqlManager
                                          csvParameter As CsvParameterBuilder,
                                          createrMethod As Func(Of Object(), T)) As List(Of T)
         Try
-            LoggingDebug($"Execute SQL : {query}")
-            LoggingDebug($"Use Transaction : {setting.Transaction IsNot Nothing}")
-            LoggingDebug($"Timeout seconds : {setting.TimeOutSecond}")
+            LoggingInformation($"Execute SQL : {query}")
+            LoggingInformation($"Use Transaction : {setting.Transaction IsNot Nothing}")
+            LoggingInformation($"Timeout seconds : {setting.TimeOutSecond}")
             Dim varFormat = GetVariantFormat(setting.ParameterPrefix)
 
             Dim recoreds As New List(Of T)()
@@ -766,7 +766,7 @@ Public Module ZoppaDSqlManager
 
                 ' SQLクエリを設定
                 command.CommandText = ParserAnalysis.Replase(query, dynamicParameter)
-                LoggingDebug($"Answer SQL : {command.CommandText}")
+                LoggingInformation($"Answer SQL : {command.CommandText}")
 
                 ' パラメータの定義を設定
                 SetSqlParameterDefine(command, csvParameter, varFormat)
@@ -880,9 +880,9 @@ Public Module ZoppaDSqlManager
                                  dynamicParameter As Object,
                                  ParamArray sqlParameter As Object()) As Integer
         Try
-            LoggingDebug($"Execute SQL : {query}")
-            LoggingDebug($"Use Transaction : {setting.Transaction IsNot Nothing}")
-            LoggingDebug($"Timeout seconds : {setting.TimeOutSecond}")
+            LoggingInformation($"Execute SQL : {query}")
+            LoggingInformation($"Use Transaction : {setting.Transaction IsNot Nothing}")
+            LoggingInformation($"Timeout seconds : {setting.TimeOutSecond}")
             Dim varFormat = GetVariantFormat(setting.ParameterPrefix)
 
             Dim ans As Integer = 0
@@ -897,7 +897,7 @@ Public Module ZoppaDSqlManager
 
                 ' SQLクエリを設定
                 command.CommandText = ParserAnalysis.Replase(query, dynamicParameter)
-                LoggingDebug($"Answer SQL : {command.CommandText}")
+                LoggingInformation($"Answer SQL : {command.CommandText}")
 
                 ' SQLパラメータが空なら動的パラメータを展開
                 If dynamicParameter IsNot Nothing AndAlso sqlParameter.Length = 0 Then
@@ -1068,9 +1068,9 @@ Public Module ZoppaDSqlManager
                                  csvStream As CsvReaderStream,
                                  csvParameter As CsvParameterBuilder) As Integer
         Try
-            LoggingDebug($"Execute SQL : {query}")
-            LoggingDebug($"Use Transaction : {setting.Transaction IsNot Nothing}")
-            LoggingDebug($"Timeout seconds : {setting.TimeOutSecond}")
+            LoggingInformation($"Execute SQL : {query}")
+            LoggingInformation($"Use Transaction : {setting.Transaction IsNot Nothing}")
+            LoggingInformation($"Timeout seconds : {setting.TimeOutSecond}")
             Dim varFormat = GetVariantFormat(setting.ParameterPrefix)
 
             Dim ans As Integer = 0
@@ -1085,7 +1085,7 @@ Public Module ZoppaDSqlManager
 
                 ' SQLクエリを設定
                 command.CommandText = ParserAnalysis.Replase(query, dynamicParameter)
-                LoggingDebug($"Answer SQL : {command.CommandText}")
+                LoggingInformation($"Answer SQL : {command.CommandText}")
 
                 ' パラメータの定義を設定
                 SetSqlParameterDefine(command, csvParameter, varFormat)

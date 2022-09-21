@@ -28,7 +28,7 @@ Namespace Analysis.Tokens
 
         ''' <summary>コンストラクタ。</summary>
         Public Sub New()
-            Me.TrimString = ","
+            Me.TrimString = ""
         End Sub
 
         ''' <summary>コンストラクタ。</summary>

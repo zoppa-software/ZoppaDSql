@@ -186,6 +186,15 @@ where
   col3 = 5")
         End Sub
 
+        <Fact>
+        Public Sub TrimTest()
+            Dim ans1 = "{trim}   a = #{12 * 13}   {end trim}".Compile()
+            Assert.Equal(ans1, "a = 156")
+
+            Dim ans2 = "{trim trush}   a = #{'11' + '29'}trush{end trim}".Compile()
+            Assert.Equal(ans2, "a = '1129'")
+        End Sub
+
     End Class
 
 End Namespace

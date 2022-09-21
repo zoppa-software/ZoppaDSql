@@ -8,7 +8,7 @@ Public NotInheritable Class CsvParameterBuilder
     Implements IEnumerable(Of Pair)
 
     ' CSV列名リスト
-    Private mNames As New List(Of String)()
+    Private ReadOnly mNames As New List(Of String)()
 
     ' CSV列名、列型コレクション
     Private mMap As New SortedDictionary(Of String, ICsvType)()
@@ -30,7 +30,7 @@ Public NotInheritable Class CsvParameterBuilder
             If Me.mMap.TryGetValue(name, v) Then
                 Return v
             Else
-                Throw New Exception()
+                Throw New CsvException("列型情報が取得できません")
             End If
         End Get
         Set(value As ICsvType)
@@ -47,7 +47,7 @@ Public NotInheritable Class CsvParameterBuilder
                 Dim mn = Me.mNames(index)
                 Return New Pair(mn, Me.mMap(mn))
             Else
-                Throw New Exception()
+                Throw New CsvException("列名、列型情報が取得できません")
             End If
         End Get
     End Property

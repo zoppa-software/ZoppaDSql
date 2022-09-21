@@ -147,14 +147,6 @@ Namespace Analysis
                         Dim rtoken = chd.TargetToken.GetToken(Of ReplaseToken)()
                         If rtoken IsNot Nothing Then
                             Dim rval = prm.GetValue(If(rtoken.Contents?.ToString(), ""))
-                            'If TypeOf ans Is String AndAlso rtoken.IsEscape Then
-                            '    Dim s = ans.ToString()
-                            '    s = s.Replace("'"c, "''")
-                            '    s = s.Replace("\"c, "\\")
-                            '    ans = $"'{s}'"
-                            'ElseIf ans Is Nothing Then
-                            '    ans = "null"
-                            'End If
                             Dim ans = GetRefValue(rval, rtoken.IsEscape)
                             buffer.Append(ans)
                             ansParts.Add(New EvaParts(chd.TargetToken, ans.ToString()))
@@ -335,13 +327,11 @@ Namespace Analysis
             ' トリムルールに従ってトリムします
             If subAnsParts.First().token.TokenName = NameOf(ForEachToken) AndAlso
                subAnsParts.Last().token.TokenName = NameOf(EndForToken) Then
-                RemoveTrimEndByForeach(trimToken.TargetToken.GetToken(Of TrimToken)(), subAnsParts)
-
+                RemoveTrimEndByForeach(trimToken.TargetToken.GetToken(Of TrimToken)(), subAnsParts, ",")
                 For Each parts In subAnsParts
                     ansParts.Add(parts)
                     buffer.Append(parts.outString)
                 Next
-                'buffer.Append(subAnsParts(lastPos).outString.TrimEnd(trimTkn.TrimChars))
 
             ElseIf subAnsParts.First().token.TokenName = NameOf(QueryToken) AndAlso
                    subAnsParts.First().outString?.Trim().ToLower().StartsWith("where") Then
@@ -366,6 +356,7 @@ Namespace Analysis
                 'End If
 
             Else
+                RemoveTrimEndByForeach(trimToken.TargetToken.GetToken(Of TrimToken)(), subAnsParts, "")
                 For Each tkn In subAnsParts
                     ansParts.Add(tkn)
                     buffer.Append(tkn.outString)
@@ -373,16 +364,20 @@ Namespace Analysis
             End If
         End Sub
 
-        Private Sub RemoveTrimEndByForeach(trimTkn As TrimToken, ansParts As List(Of EvaParts))
-            For i As Integer = ansParts.Count - 1 To 0 Step -1
-                If ansParts(i).token.TokenName = NameOf(QueryToken) AndAlso Not ansParts(i).IsSpace Then
-                    Dim str = ansParts(i).outString.TrimEnd()
-                    If str.EndsWith(",") Then
-                        ansParts(i).outString = str.Substring(0, str.Length - ",".Length)
+        Private Sub RemoveTrimEndByForeach(trimTkn As TrimToken, ansParts As List(Of EvaParts), defTrmStr As String)
+            Dim trmstr = If(trimTkn.TrimString?.Trim() = "", defTrmStr, trimTkn.TrimString?.Trim())
+
+            If trmstr <> "" Then
+                For i As Integer = ansParts.Count - 1 To 0 Step -1
+                    If ansParts(i).token.TokenName = NameOf(QueryToken) AndAlso Not ansParts(i).IsSpace Then
+                        Dim str = ansParts(i).outString.TrimEnd()
+                        If str.EndsWith(trmstr) Then
+                            ansParts(i).outString = str.Substring(0, str.Length - trmstr.Length)
+                        End If
+                        Exit For
                     End If
-                    Exit For
-                End If
-            Next
+                Next
+            End If
         End Sub
 
         ''' <summary>
