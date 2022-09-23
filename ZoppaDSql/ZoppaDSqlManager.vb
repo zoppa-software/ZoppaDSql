@@ -268,15 +268,30 @@ Public Module ZoppaDSqlManager
                 Dim props = SetSqlParameterDefine(command, sqlParameter, varFormat)
 
                 Dim constructor As ConstructorInfo = Nothing
-                For Each prm In sqlParameter
-                    ' パラメータ変数に値を設定
-                    SetParameter(command, prm, props, varFormat)
+                If sqlParameter.Length > 0 Then
+                    For Each prm In sqlParameter
+                        ' パラメータ変数に値を設定
+                        SetParameter(command, prm, props, varFormat)
 
+                        Using reader = command.ExecuteReader()
+                            ' マッピングコンストラクタを設定
+                            If constructor Is Nothing Then
+                                constructor = CreateConstructorInfo(Of T)(reader)
+                            End If
+
+                            ' 一行取得してインスタンスを生成
+                            Dim fields = New Object(reader.FieldCount - 1) {}
+                            Do While reader.Read()
+                                If reader.GetValues(fields) >= reader.FieldCount Then
+                                    recoreds.Add(CType(constructor.Invoke(fields), T))
+                                End If
+                            Loop
+                        End Using
+                    Next
+                Else
                     Using reader = command.ExecuteReader()
                         ' マッピングコンストラクタを設定
-                        If constructor Is Nothing Then
-                            constructor = CreateConstructorInfo(Of T)(reader)
-                        End If
+                        constructor = CreateConstructorInfo(Of T)(reader)
 
                         ' 一行取得してインスタンスを生成
                         Dim fields = New Object(reader.FieldCount - 1) {}
@@ -286,7 +301,7 @@ Public Module ZoppaDSqlManager
                             End If
                         Loop
                     End Using
-                Next
+                End If
             End Using
             Return recoreds
 
@@ -584,10 +599,22 @@ Public Module ZoppaDSqlManager
                 ' パラメータの定義を設定
                 Dim props = SetSqlParameterDefine(command, sqlParameter, varFormat)
 
-                For Each prm In sqlParameter
-                    ' パラメータ変数に値を設定
-                    SetParameter(command, prm, props, varFormat)
+                If sqlParameter.Length > 0 Then
+                    For Each prm In sqlParameter
+                        ' パラメータ変数に値を設定
+                        SetParameter(command, prm, props, varFormat)
 
+                        ' 一行取得してインスタンスを生成
+                        Using reader = command.ExecuteReader()
+                            Dim fields = New Object(reader.FieldCount - 1) {}
+                            Do While reader.Read()
+                                If reader.GetValues(fields) >= reader.FieldCount Then
+                                    recoreds.Add(createrMethod(fields))
+                                End If
+                            Loop
+                        End Using
+                    Next
+                Else
                     ' 一行取得してインスタンスを生成
                     Using reader = command.ExecuteReader()
                         Dim fields = New Object(reader.FieldCount - 1) {}
@@ -597,7 +624,7 @@ Public Module ZoppaDSqlManager
                             End If
                         Loop
                     End Using
-                Next
+                End If
             End Using
             Return recoreds
 
@@ -907,13 +934,18 @@ Public Module ZoppaDSqlManager
                 ' パラメータの定義を設定
                 Dim props = SetSqlParameterDefine(command, sqlParameter, varFormat)
 
-                For Each prm In sqlParameter
-                    ' パラメータ変数に値を設定
-                    SetParameter(command, prm, props, varFormat)
+                If sqlParameter.Length > 0 Then
+                    For Each prm In sqlParameter
+                        ' パラメータ変数に値を設定
+                        SetParameter(command, prm, props, varFormat)
 
+                        ' SQLを実行
+                        ans += command.ExecuteNonQuery()
+                    Next
+                Else
                     ' SQLを実行
-                    ans += command.ExecuteNonQuery()
-                Next
+                    ans = command.ExecuteNonQuery()
+                End If
             End Using
             Return ans
 

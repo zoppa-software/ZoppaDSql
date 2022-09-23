@@ -152,7 +152,28 @@ Dim ans2 = "{trim trush}   a = #{'11' + '29'}trush{end trim}".Compile()
 Assert.Equal(ans2, "a = '1129'")
 ```
 #### foreach文と組み合わせたtrimの使い方
+`{trim}{foreach}～{end for}{end trim}`と記述している場合、末尾の`,`は自動的にトリムされます。  
+以下が例です。'なにぬねの'の末尾に表示されるはずの`,`はトリムされており出力されません。  
+``` vb
+Dim strs As New List(Of String)()
+strs.Add("あいうえお")
+strs.Add("かきくけこ")
+strs.Add("さしすせそ")
+strs.Add("たちつてと")
+strs.Add("なにぬねの")
 
+Dim ans3 = "{trim}
+{foreach str in strs}
+    #{str},
+{end for}
+{end trim}".Compile(New With {.strs = strs})
+Assert.Equal(ans3, "'あいうえお',
+    'かきくけこ',
+    'さしすせそ',
+    'たちつてと',
+    'なにぬねの'")
+```
+#### where句と組み合わせたtrimの使い方
 
 ### SQLクエリを実行し、簡単なマッパー機能を使用してインスタンスを生成する
 #### 基本的な使い方
@@ -198,6 +219,36 @@ End Class
 ```
 #### SQL実行設定
 トランザクション、SQLタイムアウトの設定も拡張メソッドで行います。  
+以下はトランザクションの例です。  
+``` vb
+Dim zodiacs = New Zodiac() {
+    New Zodiac("Aries", "牡羊座", New Date(2022, 3, 21), New Date(2022, 4, 19)),
+    New Zodiac("Taurus", "牡牛座", New Date(2022, 4, 20), New Date(2022, 5, 20)),
+    New Zodiac("Gemini", "双子座", New Date(2022, 5, 21), New Date(2022, 6, 21)),
+    New Zodiac("Cancer", "蟹座", New Date(2022, 6, 22), New Date(2022, 7, 22)),
+    New Zodiac("Leo", "獅子座", New Date(2022, 7, 23), New Date(2022, 8, 22)),
+    New Zodiac("Virgo", "乙女座", New Date(2022, 8, 23), New Date(2022, 9, 22)),
+    New Zodiac("Libra", "天秤座", New Date(2022, 9, 23), New Date(2022, 10, 23)),
+    New Zodiac("Scorpio", "蠍座", New Date(2022, 10, 24), New Date(2022, 11, 22)),
+    New Zodiac("Sagittarius", "射手座", New Date(2022, 11, 23), New Date(2022, 12, 21)),
+    New Zodiac("Capricom", "山羊座", New Date(2022, 12, 22), New Date(2023, 1, 19)),
+    New Zodiac("Aquuarius", "水瓶座", New Date(2023, 1, 20), New Date(2023, 2, 18)),
+    New Zodiac("Pisces", "魚座", New Date(2023, 2, 19), New Date(2023, 3, 20))
+}
+
+Dim tran = Me.mSQLite.BeginTransaction()
+Try
+    Me.mSQLite.SetTransaction(tran).ExecuteQuery(
+        "INSERT INTO Zodiac (name, jp_name, from_date, to_date) 
+        VALUES (@Name, @JpName, @FromDate, @ToDate)", Nothing, zodiacs)
+    tran.Commit()
+Catch ex As Exception
+    tran.Rollback()
+End Try
+```
+トランザクションは`IDbConnection`から適切に取得してください。  
+`SetTransaction`という拡張メソッドを用意しているのでトランザクションを与えます、その後はコミット、ロールバックを実行してください。
+
 ### パラメータにCSVファイルを与えてSQLクエリを実行します
 ### ログファイル出力機能を有効にします
 動的SQLを使用したとき、生成されたSQL文を確認したい時があります。そのためにZoppaDSqlではログファイル出力機能があります。  

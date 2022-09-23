@@ -193,6 +193,23 @@ where
 
             Dim ans2 = "{trim trush}   a = #{'11' + '29'}trush{end trim}".Compile()
             Assert.Equal(ans2, "a = '1129'")
+
+            Dim strs As New List(Of String)()
+            strs.Add("あいうえお")
+            strs.Add("かきくけこ")
+            strs.Add("さしすせそ")
+            strs.Add("たちつてと")
+            strs.Add("なにぬねの")
+            Dim ans3 = "{trim}
+{foreach str in strs}
+    #{str},
+{end for}
+{end trim}".Compile(New With {.strs = strs})
+            Assert.Equal(ans3, "'あいうえお',
+    'かきくけこ',
+    'さしすせそ',
+    'たちつてと',
+    'なにぬねの'")
         End Sub
 
     End Class
