@@ -18,8 +18,11 @@ where
     ({if af}a = 1{end if} or {if bf}b = 2{end if}) and ({if cf}c = 3{end if} or {if df}d = 4{end if})
 {end trim}
 "
-            Dim ans6 = query3.Compile(New With {.af = True, .bf = False, .cf = False, .df = True})
-            Assert.Equal(ans6.Trim(),
+            Dim ans6 = query3.Compile(New With {.af = False, .bf = False, .cf = False, .df = False})
+            Assert.Equal(ans6.Trim(), "select * from tb1")
+
+            Dim ans7 = query3.Compile(New With {.af = True, .bf = False, .cf = False, .df = True})
+            Assert.Equal(ans7.Trim(),
 "select * from tb1
 where
     (a = 1 ) and ( d = 4)")

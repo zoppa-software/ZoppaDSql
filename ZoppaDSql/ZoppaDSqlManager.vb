@@ -65,15 +65,16 @@ Public Module ZoppaDSqlManager
 
                 ' パラメータの名前、方向を設定
                 prm.ParameterName = String.Format(varFormat, prop.Name)
-                prm.DbType = GetDbType(prop.PropertyType)
-                If prop.CanRead AndAlso prop.CanWrite Then
-                    prm.Direction = ParameterDirection.Input
-                Else
-                    prm.Direction = If(prop.CanWrite, ParameterDirection.Output, ParameterDirection.Input)
-                End If
-                LoggingDebug($"・Name = {prm.ParameterName} Direction = {[Enum].GetName(GetType(ParameterDirection), prm.Direction)}")
+                If GetDbType(prop.PropertyType, prm.DbType) Then
+                    If prop.CanRead AndAlso prop.CanWrite Then
+                        prm.Direction = ParameterDirection.Input
+                    Else
+                        prm.Direction = If(prop.CanWrite, ParameterDirection.Output, ParameterDirection.Input)
+                    End If
+                    LoggingDebug($"・Name = {prm.ParameterName} Direction = {[Enum].GetName(GetType(ParameterDirection), prm.Direction)}")
 
-                command.Parameters.Add(prm)
+                    command.Parameters.Add(prm)
+                End If
             Next
         End If
         Return props
@@ -91,8 +92,10 @@ Public Module ZoppaDSqlManager
             Dim propVal = If(prop.GetValue(parameter), DBNull.Value)
 
             ' 変数に設定
-            LoggingDebug($"・{propName}={propVal}")
-            CType(command.Parameters(propName), IDbDataParameter).Value = propVal
+            If command.Parameters.Contains(propName) Then
+                LoggingDebug($"・{propName}={propVal}")
+                CType(command.Parameters(propName), IDbDataParameter).Value = propVal
+            End If
         Next
     End Sub
 
@@ -152,54 +155,57 @@ Public Module ZoppaDSqlManager
 
     ''' <summary>引数で指定した型をDBのデータ型に変換します。</summary>
     ''' <param name="propType">データ型。</param>
-    ''' <returns>DBのデータ型。</returns>
-    Private Function GetDbType(propType As Type) As DbType
+    ''' <param name="dbType">DBのデータ型(戻り値)</param>
+    ''' <returns>変換できたら真。</returns>
+    Private Function GetDbType(propType As Type, ByRef dbType As DbType) As Boolean
+        Dim res = True
         Select Case propType
             Case GetType(String)
-                Return DbType.String
+                dbType = DbType.String
 
             Case GetType(Integer), GetType(Integer?)
-                Return DbType.Int32
+                dbType = DbType.Int32
 
             Case GetType(Long), GetType(Long?)
-                Return DbType.Int64
+                dbType = DbType.Int64
 
             Case GetType(Short), GetType(Short?)
-                Return DbType.Int16
+                dbType = DbType.Int16
 
             Case GetType(Single), GetType(Single?)
-                Return DbType.Single
+                dbType = DbType.Single
 
             Case GetType(Double), GetType(Double?)
-                Return DbType.Double
+                dbType = DbType.Double
 
             Case GetType(Decimal), GetType(Decimal?)
-                Return DbType.Decimal
+                dbType = DbType.Decimal
 
             Case GetType(Date), GetType(Date?)
-                Return DbType.Date
+                dbType = DbType.Date
 
             Case GetType(TimeSpan), GetType(TimeSpan?)
-                Return DbType.Time
+                dbType = DbType.Time
 
             Case GetType(Object)
-                Return DbType.Object
+                dbType = DbType.Object
 
             Case GetType(Boolean), GetType(Boolean?)
-                Return DbType.Boolean
+                dbType = DbType.Boolean
 
             Case GetType(Byte), GetType(Byte?)
-                Return DbType.Byte
+                dbType = DbType.Byte
 
             Case GetType(Byte())
-                Return DbType.Binary
+                dbType = DbType.Binary
 
             Case GetType(Char())
-                Return DbType.String
+                dbType = DbType.String
 
             Case Else
-                Throw New DSqlException("SQLパラメータに使用できないプロパティを使用しています")
+                res = False
         End Select
+        Return res
     End Function
 
     ''' <summary>マッピングするコンストラクタを取得します。</summary>
@@ -1049,7 +1055,7 @@ Public Module ZoppaDSqlManager
 
                 ' パラメータの名前、方向を設定
                 prm.ParameterName = String.Format(varFormat, pair.Name)
-                prm.DbType = GetDbType(pair.CsvColumnType.ColumnType)
+                GetDbType(pair.CsvColumnType.ColumnType, prm.DbType)
                 prm.Direction = ParameterDirection.Input
                 LoggingDebug($"・Name = {prm.ParameterName} Direction = {[Enum].GetName(GetType(ParameterDirection), prm.Direction)}")
 

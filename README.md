@@ -277,6 +277,36 @@ End Try
 | SetParameterPrepix | SQLパラメータの接頭辞を設定します、デフォルトは`@`です。 | 
 | SetCommandType | SQLのコマンドタイプを設定します、デフォルト値は`CommandType.Text`です。 |
   
+### インスタンス生成をカスタマイズします
+検索結果が 多対1 など一つのインスタンスで表現できない場合、インスタンスの生成をカスタマイズする必要があります。  
+ZoppaDSqlではインスタンスを生成する式を引数で与えることで対応します。  
+以下の例では、`Person`テーブルと`Zodiac`テーブルが多対1の関係で、そのまま`Person`クラスと`Zodiac`クラスに展開します。SQLの実行結果 1レコードで 1つの`Person`クラスを生成し、リレーションキーで`Zodiac`クラスをコレクションに保持して、関連を表現する`Persons`プロパティに追加します。
+``` vb
+Dim ansZodiacs As New PrimaryKeyList(Of Zodiac)()
+Dim ansPersons = Me.mSQLite.ExecuteRecords(Of Person)(
+    "select " &
+    "  Person.Name, Person.birth_day, Zodiac.name, Zodiac.jp_name, Zodiac.from_date, Zodiac.to_date " &
+    "from Person " &
+    "left outer join Zodiac on " &
+    "  Person.zodiac = Zodiac.name",
+    Function(prm As Object()) As Person
+        ' 一つのPersonを生成
+        Dim pson = New Person(prm(0).ToString(), prm(2).ToString(), CDate(prm(1)))
+
+        ' リレーションキーでZodiacを保持し、Personsプロパティに関連を追加
+        Dim zdic As Zodiac = Nothing
+        Dim zdicKey = prm(2).ToString()
+        If Not ansZodiacs.TrySearchValue(zdic, zdicKey) Then
+            zdic = New Zodiac(zdicKey, prm(3).ToString(), CDate(prm(4)), CDate(prm(5)))
+            ansZodiacs.Regist(zdic, zdicKey)
+        End If
+        zdic.Persons.Add(pson)
+
+        Return pson
+    End Function
+)
+```
+  
 ### パラメータにCSVファイルを与えてSQLクエリを実行します
 ### ログファイル出力機能を有効にします
 動的SQLを使用したとき、生成されたSQL文を確認したい時があります。そのためにZoppaDSqlではログファイル出力機能があります。  
@@ -292,9 +322,44 @@ ZoppaDSqlManager.LogWaitFinish()
 
 ### 付属機能
 #### 簡単な式を評価し、結果を得ることができます
+``` vb
+' 数式
+Dim ans1 = "(28 - 3) / (2 + 3)".Executes().Contents
+Assert.Equal(ans1, 5)
+
+' 比較式
+Dim ans2 = "0.1 * 5 <= 0.4".Executes().Contents
+Assert.Equal(ans2, False)
+```
 #### カンマ区切りで文字列を分割できます
+``` vb
+Dim csv = CsvSpliter.CreateSpliter("あ, い, う, え, お").Split().Select(Of String)(Function(i) i.UnEscape()).ToArray()
+Assert.Equal(csv, New String() {"あ", "い", "う", "え", "お"})
+```
 #### CSVファイルを読み込みます
 #### CSVファイルを読み込み、簡単なマッパー機能を使用してインスタンスを生成します
+``` vb
+Dim ans As New List(Of Sample1Csv)()
+Using sr As New CsvReaderStream("CsvFiles\Sample1.csv", Encoding.GetEncoding("shift_jis"))
+ans = sr.WhereCsv(Of Sample1Csv)(
+    Function(row, item) row >= 1,
+    CsvType.CsvString, CsvType.CsvString, CsvType.CsvString
+).ToList()
+End Using
+```
+``` vb
+Class Sample1Csv
+    Public ReadOnly Property Item1 As String
+    Public ReadOnly Property Item2 As String
+    Public ReadOnly Property Item3 As String
+
+    Public Sub New(s1 As String, s2 As String, s3 As String)
+        Me.Item1 = s1
+        Me.Item2 = s2
+        Me.Item3 = s3
+    End Sub
+End Class
+```
 
 ## インストール
 ソースをビルドして `ZoppaDSql.dll` ファイルを生成して参照してください。  

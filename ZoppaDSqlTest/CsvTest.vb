@@ -134,6 +134,12 @@ Namespace ZoppaDSqlTest
             Assert.Equal(New TimeSpan(3, 21, 0), ans1(0).ItemTime)
         End Sub
 
+        <Fact>
+        Public Sub SplitTest()
+            Dim csv = CsvSpliter.CreateSpliter("あ, い, う, え, お").Split().Select(Of String)(Function(i) i.UnEscape()).ToArray()
+            Assert.Equal(csv, New String() {"あ", "い", "う", "え", "お"})
+        End Sub
+
     End Class
 
 End Namespace
