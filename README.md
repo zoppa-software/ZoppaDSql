@@ -174,7 +174,28 @@ Assert.Equal(ans3, "'あいうえお',
     'なにぬねの'")
 ```
 #### where句と組み合わせたtrimの使い方
+`{trim}where {if}～{end if}{end trim}`と記述している場合、if文が空になったとき`where`をトリムします。  
+また、`and`、`or`の関係演算子を構文解析して不要な場合、削除します。  
+``` vb
+Dim query3 = "" &
+"select * from tb1
+{trim}
+where
+    ({if af}a = 1{end if} or {if bf}b = 2{end if}) and ({if cf}c = 3{end if} or {if df}d = 4{end if})
+{end trim}
+"
+' こちらは where句から全てトリムされます
+Dim ans6 = query3.Compile(New With {.af = False, .bf = False, .cf = False, .df = False})
+Assert.Equal(ans6.Trim(), "select * from tb1")
 
+' b = 2、c = 3 が非出力なので or がトリムされます
+Dim ans7 = query3.Compile(New With {.af = True, .bf = False, .cf = False, .df = True})
+Assert.Equal(ans7.Trim(),
+"select * from tb1
+where
+    (a = 1 ) and ( d = 4)")
+```
+  
 ### SQLクエリを実行し、簡単なマッパー機能を使用してインスタンスを生成する
 #### 基本的な使い方
 動的に生成したSQL文をDapperやEntity Frameworkで利用することができます。  
@@ -247,8 +268,15 @@ Catch ex As Exception
 End Try
 ```
 トランザクションは`IDbConnection`から適切に取得してください。  
-`SetTransaction`という拡張メソッドを用意しているのでトランザクションを与えます、その後はコミット、ロールバックを実行してください。
-
+`SetTransaction`という拡張メソッドを用意しているのでトランザクションを与えます、その後はコミット、ロールバックを実行してください。  
+拡張メソッドは以下のものがあります。  
+| メソッド | 内容 |  
+| ---- | ---- | 
+| SetTransaction | トランザクションを設定します。 | 
+| SetTimeoutSecond | SQLタイムアウトを設定します（秒数）、デフォルト値は30秒です。 | 
+| SetParameterPrepix | SQLパラメータの接頭辞を設定します、デフォルトは`@`です。 | 
+| SetCommandType | SQLのコマンドタイプを設定します、デフォルト値は`CommandType.Text`です。 |
+  
 ### パラメータにCSVファイルを与えてSQLクエリを実行します
 ### ログファイル出力機能を有効にします
 動的SQLを使用したとき、生成されたSQL文を確認したい時があります。そのためにZoppaDSqlではログファイル出力機能があります。  

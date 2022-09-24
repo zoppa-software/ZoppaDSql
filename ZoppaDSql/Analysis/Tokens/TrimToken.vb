@@ -5,7 +5,7 @@ Namespace Analysis.Tokens
 
     ''' <summary>Trimトークン。</summary>
     Public NotInheritable Class TrimToken
-        Implements IToken
+        Implements IToken, IControlToken
 
         ''' <summary>末尾からトリムする文字列を返します。</summary>
         Public ReadOnly Property TrimString As String

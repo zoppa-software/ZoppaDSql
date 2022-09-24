@@ -7,7 +7,7 @@ Namespace Analysis.Tokens
 
     ''' <summary>Ifトークン。</summary>
     Public NotInheritable Class IfToken
-        Implements IToken, ICommandToken
+        Implements IToken, ICommandToken, IControlToken
 
         ' 条件式トークン
         Private ReadOnly mToken As List(Of TokenPosition)

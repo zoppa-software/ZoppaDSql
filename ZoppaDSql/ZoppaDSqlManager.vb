@@ -8,7 +8,6 @@ Imports System.Text
 Imports ZoppaDSql.Analysis
 Imports ZoppaDSql.Analysis.Tokens
 Imports ZoppaDSql.Csv
-Imports ZoppaDSql.ZoppaDSqlSetting
 
 ''' <summary>DSql APIモジュール。</summary>
 Public Module ZoppaDSqlManager
@@ -52,11 +51,12 @@ Public Module ZoppaDSqlManager
     ''' <returns>プロパティインフォ。</returns>
     Private Function SetSqlParameterDefine(command As IDbCommand, parameter As Object(), varFormat As String) As PropertyInfo()
         Dim props = New PropertyInfo(-1) {}
-        If parameter.Length > 0 Then
-            LoggingDebug("Parameter class define")
+        Dim params = parameter.Where(Function(v) v IsNot Nothing)
+        If params.Any() Then
+            LoggingDebug("params class define")
 
             ' プロパティインフォを取得
-            props = parameter(0).GetType().GetProperties()
+            props = params.First().GetType().GetProperties()
 
             command.Parameters.Clear()
             For Each prop In props
@@ -242,6 +242,7 @@ Public Module ZoppaDSqlManager
         Try
             LoggingInformation($"Execute SQL : {query}")
             LoggingInformation($"Use Transaction : {setting.Transaction IsNot Nothing}")
+            LoggingInformation($"Use command type : {setting.CommandType}")
             LoggingInformation($"Timeout seconds : {setting.TimeOutSecond}")
             Dim varFormat = GetVariantFormat(setting.ParameterPrefix)
 
@@ -260,38 +261,28 @@ Public Module ZoppaDSqlManager
                 LoggingInformation($"Answer SQL : {command.CommandText}")
 
                 ' SQLパラメータが空なら動的パラメータを展開
-                If dynamicParameter IsNot Nothing AndAlso sqlParameter.Length = 0 Then
+                If sqlParameter.Length = 0 Then
                     sqlParameter = New Object() {dynamicParameter}
                 End If
+
+                ' SQLコマンドタイプを設定
+                command.CommandType = setting.CommandType
 
                 ' パラメータの定義を設定
                 Dim props = SetSqlParameterDefine(command, sqlParameter, varFormat)
 
                 Dim constructor As ConstructorInfo = Nothing
-                If sqlParameter.Length > 0 Then
-                    For Each prm In sqlParameter
-                        ' パラメータ変数に値を設定
+                For Each prm In sqlParameter
+                    ' パラメータ変数に値を設定
+                    If prm IsNot Nothing Then
                         SetParameter(command, prm, props, varFormat)
+                    End If
 
-                        Using reader = command.ExecuteReader()
-                            ' マッピングコンストラクタを設定
-                            If constructor Is Nothing Then
-                                constructor = CreateConstructorInfo(Of T)(reader)
-                            End If
-
-                            ' 一行取得してインスタンスを生成
-                            Dim fields = New Object(reader.FieldCount - 1) {}
-                            Do While reader.Read()
-                                If reader.GetValues(fields) >= reader.FieldCount Then
-                                    recoreds.Add(CType(constructor.Invoke(fields), T))
-                                End If
-                            Loop
-                        End Using
-                    Next
-                Else
                     Using reader = command.ExecuteReader()
                         ' マッピングコンストラクタを設定
-                        constructor = CreateConstructorInfo(Of T)(reader)
+                        If constructor Is Nothing Then
+                            constructor = CreateConstructorInfo(Of T)(reader)
+                        End If
 
                         ' 一行取得してインスタンスを生成
                         Dim fields = New Object(reader.FieldCount - 1) {}
@@ -301,7 +292,7 @@ Public Module ZoppaDSqlManager
                             End If
                         Loop
                     End Using
-                End If
+                Next
             End Using
             Return recoreds
 
@@ -420,16 +411,14 @@ Public Module ZoppaDSqlManager
     '-----------------------------------------------------------------------------------------------------------------
     ' ExecuteQuery(CSV)
     '-----------------------------------------------------------------------------------------------------------------
-    ''' <summary>
-    ''' 
-    ''' </summary>
-    ''' <typeparam name="T"></typeparam>
-    ''' <param name="setting"></param>
-    ''' <param name="query"></param>
-    ''' <param name="dynamicParameter"></param>
-    ''' <param name="csvStream"></param>
-    ''' <param name="csvParameter"></param>
-    ''' <returns></returns>
+    ''' <summary>SQLクエリを実行し、指定の型のリストを取得します。</summary>
+    ''' <typeparam name="T">戻り値の型。</typeparam>
+    ''' <param name="setting">実行パラメータ設定。</param>
+    ''' <param name="query">SQLクエリ。</param>
+    ''' <param name="dynamicParameter">動的SQLパラメータ。</param>
+    ''' <param name="csvStream">CSVストリーム。</param>
+    ''' <param name="csvParameter">CSV変換パラメータ。</param>
+    ''' <returns>実行結果。</returns>
     <Extension()>
     Public Function ExecuteRecords(Of T)(setting As Settings,
                                          query As String,
@@ -439,6 +428,7 @@ Public Module ZoppaDSqlManager
         Try
             LoggingInformation($"Execute SQL : {query}")
             LoggingInformation($"Use Transaction : {setting.Transaction IsNot Nothing}")
+            LoggingInformation($"Use command type : {setting.CommandType}")
             LoggingInformation($"Timeout seconds : {setting.TimeOutSecond}")
             Dim varFormat = GetVariantFormat(setting.ParameterPrefix)
 
@@ -458,6 +448,9 @@ Public Module ZoppaDSqlManager
 
                 ' パラメータの定義を設定
                 SetSqlParameterDefine(command, csvParameter, varFormat)
+
+                ' SQLコマンドタイプを設定
+                command.CommandType = setting.CommandType
 
                 Dim constructor As ConstructorInfo = Nothing
                 For Each prm In csvStream
@@ -500,16 +493,14 @@ Public Module ZoppaDSqlManager
         End Try
     End Function
 
-    ''' <summary>
-    ''' 
-    ''' </summary>
-    ''' <typeparam name="T"></typeparam>
-    ''' <param name="connect"></param>
-    ''' <param name="query"></param>
-    ''' <param name="dynamicParameter"></param>
-    ''' <param name="csvStream"></param>
-    ''' <param name="csvParameter"></param>
-    ''' <returns></returns>
+    ''' <summary>SQLクエリを実行し、指定の型のリストを取得します。</summary>
+    ''' <typeparam name="T">戻り値の型。</typeparam>
+    ''' <param name="connect">DBコネクション。</param>
+    ''' <param name="query">SQLクエリ。</param>
+    ''' <param name="dynamicParameter">動的SQLパラメータ。</param>
+    ''' <param name="csvStream">CSVストリーム。</param>
+    ''' <param name="csvParameter">CSV変換パラメータ。</param>
+    ''' <returns>実行結果。</returns>
     <Extension()>
     Public Function ExecuteRecords(Of T)(connect As IDbConnection,
                                          query As String,
@@ -519,15 +510,13 @@ Public Module ZoppaDSqlManager
         Return ExecuteRecords(Of T)(New Settings(connect), query, dynamicParameter, csvStream, csvParameter)
     End Function
 
-    ''' <summary>
-    ''' 
-    ''' </summary>
-    ''' <typeparam name="T"></typeparam>
-    ''' <param name="setting"></param>
-    ''' <param name="query"></param>
-    ''' <param name="csvStream"></param>
-    ''' <param name="csvParameter"></param>
-    ''' <returns></returns>
+    ''' <summary>SQLクエリを実行し、指定の型のリストを取得します。</summary>
+    ''' <typeparam name="T">戻り値の型。</typeparam>
+    ''' <param name="setting">実行パラメータ設定。</param>
+    ''' <param name="query">SQLクエリ。</param>
+    ''' <param name="csvStream">CSVストリーム。</param>
+    ''' <param name="csvParameter">CSV変換パラメータ。</param>
+    ''' <returns>実行結果。</returns>
     <Extension()>
     Public Function ExecuteRecords(Of T)(setting As Settings,
                                          query As String,
@@ -536,16 +525,13 @@ Public Module ZoppaDSqlManager
         Return ExecuteRecords(Of T)(setting, query, Nothing, csvStream, csvParameter)
     End Function
 
-    ''' <summary>
-    ''' 
-    ''' </summary>
-    ''' <typeparam name="T"></typeparam>
-    ''' <param name="connect"></param>
-    ''' <param name="query"></param>
-    ''' <param name="dynamicParameter"></param>
-    ''' <param name="csvStream"></param>
-    ''' <param name="csvParameter"></param>
-    ''' <returns></returns>
+    ''' <summary>SQLクエリを実行し、指定の型のリストを取得します。</summary>
+    ''' <typeparam name="T">戻り値の型。</typeparam>
+    ''' <param name="connect">DBコネクション。</param>
+    ''' <param name="query">SQLクエリ。</param>
+    ''' <param name="csvStream">CSVストリーム。</param>
+    ''' <param name="csvParameter">CSV変換パラメータ。</param>
+    ''' <returns>実行結果。</returns>
     <Extension()>
     Public Function ExecuteRecords(Of T)(connect As IDbConnection,
                                          query As String,
@@ -574,6 +560,7 @@ Public Module ZoppaDSqlManager
         Try
             LoggingInformation($"Execute SQL : {query}")
             LoggingInformation($"Use Transaction : {setting.Transaction IsNot Nothing}")
+            LoggingInformation($"Use command type : {setting.CommandType}")
             LoggingInformation($"Timeout seconds : {setting.TimeOutSecond}")
             Dim varFormat = GetVariantFormat(setting.ParameterPrefix)
 
@@ -592,29 +579,22 @@ Public Module ZoppaDSqlManager
                 LoggingInformation($"Answer SQL : {command.CommandText}")
 
                 ' SQLパラメータが空なら動的パラメータを展開
-                If dynamicParameter IsNot Nothing AndAlso sqlParameter.Length = 0 Then
+                If sqlParameter.Length = 0 Then
                     sqlParameter = New Object() {dynamicParameter}
                 End If
+
+                ' SQLコマンドタイプを設定
+                command.CommandType = setting.CommandType
 
                 ' パラメータの定義を設定
                 Dim props = SetSqlParameterDefine(command, sqlParameter, varFormat)
 
-                If sqlParameter.Length > 0 Then
-                    For Each prm In sqlParameter
-                        ' パラメータ変数に値を設定
+                For Each prm In sqlParameter
+                    ' パラメータ変数に値を設定
+                    If prm IsNot Nothing Then
                         SetParameter(command, prm, props, varFormat)
+                    End If
 
-                        ' 一行取得してインスタンスを生成
-                        Using reader = command.ExecuteReader()
-                            Dim fields = New Object(reader.FieldCount - 1) {}
-                            Do While reader.Read()
-                                If reader.GetValues(fields) >= reader.FieldCount Then
-                                    recoreds.Add(createrMethod(fields))
-                                End If
-                            Loop
-                        End Using
-                    Next
-                Else
                     ' 一行取得してインスタンスを生成
                     Using reader = command.ExecuteReader()
                         Dim fields = New Object(reader.FieldCount - 1) {}
@@ -624,7 +604,7 @@ Public Module ZoppaDSqlManager
                             End If
                         Loop
                     End Using
-                End If
+                Next
             End Using
             Return recoreds
 
@@ -757,17 +737,15 @@ Public Module ZoppaDSqlManager
     '-----------------------------------------------------------------------------------------------------------------
     ' ExecuteQuery(createrMethod, CSV)
     '-----------------------------------------------------------------------------------------------------------------
-    ''' <summary>
-    ''' 
-    ''' </summary>
-    ''' <typeparam name="T"></typeparam>
-    ''' <param name="setting"></param>
-    ''' <param name="query"></param>
-    ''' <param name="dynamicParameter"></param>
-    ''' <param name="csvStream"></param>
-    ''' <param name="csvParameter"></param>
-    ''' <param name="createrMethod"></param>
-    ''' <returns></returns>
+    ''' <summary>SQLクエリを実行し、指定の型のリストを取得します。</summary>
+    ''' <typeparam name="T">戻り値の型。</typeparam>
+    ''' <param name="setting">実行パラメータ設定。</param>
+    ''' <param name="query">SQLクエリ。</param>
+    ''' <param name="dynamicParameter">動的SQLパラメータ。</param>
+    ''' <param name="csvStream">CSVストリーム。</param>
+    ''' <param name="csvParameter">CSV変換パラメータ。</param>
+    ''' <param name="createrMethod">インスタンス生成式。</param>
+    ''' <returns>実行結果。</returns>
     <Extension()>
     Public Function ExecuteRecords(Of T)(setting As Settings,
                                          query As String,
@@ -778,6 +756,7 @@ Public Module ZoppaDSqlManager
         Try
             LoggingInformation($"Execute SQL : {query}")
             LoggingInformation($"Use Transaction : {setting.Transaction IsNot Nothing}")
+            LoggingInformation($"Use command type : {setting.CommandType}")
             LoggingInformation($"Timeout seconds : {setting.TimeOutSecond}")
             Dim varFormat = GetVariantFormat(setting.ParameterPrefix)
 
@@ -797,6 +776,9 @@ Public Module ZoppaDSqlManager
 
                 ' パラメータの定義を設定
                 SetSqlParameterDefine(command, csvParameter, varFormat)
+
+                ' SQLコマンドタイプを設定
+                command.CommandType = setting.CommandType
 
                 For Each prm In csvStream
                     ' パラメータ変数に値を設定
@@ -832,17 +814,15 @@ Public Module ZoppaDSqlManager
         End Try
     End Function
 
-    ''' <summary>
-    ''' 
-    ''' </summary>
-    ''' <typeparam name="T"></typeparam>
-    ''' <param name="connect"></param>
-    ''' <param name="query"></param>
-    ''' <param name="dynamicParameter"></param>
-    ''' <param name="csvStream"></param>
-    ''' <param name="csvParameter"></param>
-    ''' <param name="createrMethod"></param>
-    ''' <returns></returns>
+    ''' <summary>SQLクエリを実行し、指定の型のリストを取得します。</summary>
+    ''' <typeparam name="T">戻り値の型。</typeparam>
+    ''' <param name="connect">DBコネクション。</param>
+    ''' <param name="query">SQLクエリ。</param>
+    ''' <param name="dynamicParameter">動的SQLパラメータ。</param>
+    ''' <param name="csvStream">CSVストリーム。</param>
+    ''' <param name="csvParameter">CSV変換パラメータ。</param>
+    ''' <param name="createrMethod">インスタンス生成式。</param>
+    ''' <returns>実行結果。</returns>
     <Extension()>
     Public Function ExecuteRecords(Of T)(connect As IDbConnection,
                                          query As String,
@@ -853,16 +833,14 @@ Public Module ZoppaDSqlManager
         Return ExecuteRecords(Of T)(New Settings(connect), query, dynamicParameter, csvStream, csvParameter, createrMethod)
     End Function
 
-    ''' <summary>
-    ''' 
-    ''' </summary>
-    ''' <typeparam name="T"></typeparam>
-    ''' <param name="setting"></param>
-    ''' <param name="query"></param>
-    ''' <param name="csvStream"></param>
-    ''' <param name="csvParameter"></param>
-    ''' <param name="createrMethod"></param>
-    ''' <returns></returns>
+    ''' <summary>SQLクエリを実行し、指定の型のリストを取得します。</summary>
+    ''' <typeparam name="T">戻り値の型。</typeparam>
+    ''' <param name="setting">実行パラメータ設定。</param>
+    ''' <param name="query">SQLクエリ。</param>
+    ''' <param name="csvStream">CSVストリーム。</param>
+    ''' <param name="csvParameter">CSV変換パラメータ。</param>
+    ''' <param name="createrMethod">インスタンス生成式。</param>
+    ''' <returns>実行結果。</returns>
     <Extension()>
     Public Function ExecuteRecords(Of T)(setting As Settings,
                                          query As String,
@@ -872,17 +850,14 @@ Public Module ZoppaDSqlManager
         Return ExecuteRecords(Of T)(setting, query, Nothing, csvStream, csvParameter, createrMethod)
     End Function
 
-    ''' <summary>
-    ''' 
-    ''' </summary>
-    ''' <typeparam name="T"></typeparam>
-    ''' <param name="connect"></param>
-    ''' <param name="query"></param>
-    ''' <param name="dynamicParameter"></param>
-    ''' <param name="csvStream"></param>
-    ''' <param name="csvParameter"></param>
-    ''' <param name="createrMethod"></param>
-    ''' <returns></returns>
+    ''' <summary>SQLクエリを実行し、指定の型のリストを取得します。</summary>
+    ''' <typeparam name="T">戻り値の型。</typeparam>
+    ''' <param name="connect">DBコネクション。</param>
+    ''' <param name="query">SQLクエリ。</param>
+    ''' <param name="csvStream">CSVストリーム。</param>
+    ''' <param name="csvParameter">CSV変換パラメータ。</param>
+    ''' <param name="createrMethod">インスタンス生成式。</param>
+    ''' <returns>実行結果。</returns>
     <Extension()>
     Public Function ExecuteRecords(Of T)(connect As IDbConnection,
                                          query As String,
@@ -909,6 +884,7 @@ Public Module ZoppaDSqlManager
         Try
             LoggingInformation($"Execute SQL : {query}")
             LoggingInformation($"Use Transaction : {setting.Transaction IsNot Nothing}")
+            LoggingInformation($"Use command type : {setting.CommandType}")
             LoggingInformation($"Timeout seconds : {setting.TimeOutSecond}")
             Dim varFormat = GetVariantFormat(setting.ParameterPrefix)
 
@@ -927,25 +903,25 @@ Public Module ZoppaDSqlManager
                 LoggingInformation($"Answer SQL : {command.CommandText}")
 
                 ' SQLパラメータが空なら動的パラメータを展開
-                If dynamicParameter IsNot Nothing AndAlso sqlParameter.Length = 0 Then
+                If sqlParameter.Length = 0 Then
                     sqlParameter = New Object() {dynamicParameter}
                 End If
+
+                ' SQLコマンドタイプを設定
+                command.CommandType = setting.CommandType
 
                 ' パラメータの定義を設定
                 Dim props = SetSqlParameterDefine(command, sqlParameter, varFormat)
 
-                If sqlParameter.Length > 0 Then
-                    For Each prm In sqlParameter
-                        ' パラメータ変数に値を設定
+                For Each prm In sqlParameter
+                    ' パラメータ変数に値を設定
+                    If prm IsNot Nothing Then
                         SetParameter(command, prm, props, varFormat)
+                    End If
 
-                        ' SQLを実行
-                        ans += command.ExecuteNonQuery()
-                    Next
-                Else
                     ' SQLを実行
-                    ans = command.ExecuteNonQuery()
-                End If
+                    ans += command.ExecuteNonQuery()
+                Next
             End Using
             Return ans
 
@@ -1057,12 +1033,10 @@ Public Module ZoppaDSqlManager
     '-----------------------------------------------------------------------------------------------------------------
     ' ExecuteQuery(CSV)
     '-----------------------------------------------------------------------------------------------------------------
-    ''' <summary>
-    ''' 
-    ''' </summary>
-    ''' <param name="command"></param>
-    ''' <param name="csvParameter"></param>
-    ''' <param name="varFormat"></param>
+    ''' <summary>SQLパラメータの定義を設定します。</summary>
+    ''' <param name="command">SQLコマンド。</param>
+    ''' <param name="csvParameter">CSV変換パラメータ。</param>
+    ''' <param name="varFormat">パラメータ変数書式。</param>
     Private Sub SetSqlParameterDefine(command As IDbCommand, csvParameter As CsvParameterBuilder, varFormat As String)
         Dim props As New Dictionary(Of String, ICsvType)()
         If csvParameter.Count > 0 Then
@@ -1084,15 +1058,13 @@ Public Module ZoppaDSqlManager
         End If
     End Sub
 
-    ''' <summary>
-    ''' 
-    ''' </summary>
-    ''' <param name="setting"></param>
-    ''' <param name="query"></param>
-    ''' <param name="dynamicParameter"></param>
-    ''' <param name="csvStream"></param>
-    ''' <param name="csvParameter"></param>
-    ''' <returns></returns>
+    ''' <summary>SQLクエリを実行します。</summary>
+    ''' <param name="setting">実行パラメータ設定。</param>
+    ''' <param name="query">SQLクエリ。</param>
+    ''' <param name="dynamicParameter">動的SQLパラメータ。</param>
+    ''' <param name="csvStream">CSVストリーム。</param>
+    ''' <param name="csvParameter">CSV変換パラメータ。</param>
+    ''' <returns>影響行数。</returns>
     <Extension()>
     Public Function ExecuteQuery(setting As Settings,
                                  query As String,
@@ -1102,6 +1074,7 @@ Public Module ZoppaDSqlManager
         Try
             LoggingInformation($"Execute SQL : {query}")
             LoggingInformation($"Use Transaction : {setting.Transaction IsNot Nothing}")
+            LoggingInformation($"Use command type : {setting.CommandType}")
             LoggingInformation($"Timeout seconds : {setting.TimeOutSecond}")
             Dim varFormat = GetVariantFormat(setting.ParameterPrefix)
 
@@ -1121,6 +1094,9 @@ Public Module ZoppaDSqlManager
 
                 ' パラメータの定義を設定
                 SetSqlParameterDefine(command, csvParameter, varFormat)
+
+                ' SQLコマンドタイプを設定
+                command.CommandType = setting.CommandType
 
                 For Each prm In csvStream
                     ' パラメータ変数に値を設定
@@ -1149,15 +1125,13 @@ Public Module ZoppaDSqlManager
         End Try
     End Function
 
-    ''' <summary>
-    ''' 
-    ''' </summary>
-    ''' <param name="connect"></param>
-    ''' <param name="query"></param>
-    ''' <param name="dynamicParameter"></param>
-    ''' <param name="csvStream"></param>
-    ''' <param name="csvParameter"></param>
-    ''' <returns></returns>
+    ''' <summary>SQLクエリを実行します。</summary>
+    ''' <param name="connect">DBコネクション。</param>
+    ''' <param name="query">SQLクエリ。</param>
+    ''' <param name="dynamicParameter">動的SQLパラメータ。</param>
+    ''' <param name="csvStream">CSVストリーム。</param>
+    ''' <param name="csvParameter">CSV変換パラメータ。</param>
+    ''' <returns>影響行数。</returns>
     <Extension()>
     Public Function ExecuteQuery(connect As IDbConnection,
                                  query As String,
@@ -1167,14 +1141,12 @@ Public Module ZoppaDSqlManager
         Return ExecuteQuery(New Settings(connect), query, dynamicParameter, csvStream, csvParameter)
     End Function
 
-    ''' <summary>
-    ''' 
-    ''' </summary>
-    ''' <param name="setting"></param>
-    ''' <param name="query"></param>
-    ''' <param name="csvStream"></param>
-    ''' <param name="csvParameter"></param>
-    ''' <returns></returns>
+    ''' <summary>SQLクエリを実行します。</summary>
+    ''' <param name="setting">実行パラメータ設定。</param>
+    ''' <param name="query">SQLクエリ。</param>
+    ''' <param name="csvStream">CSVストリーム。</param>
+    ''' <param name="csvParameter">CSV変換パラメータ。</param>
+    ''' <returns>影響行数。</returns>
     <Extension()>
     Public Function ExecuteQuery(setting As Settings,
                                  query As String,
@@ -1183,14 +1155,12 @@ Public Module ZoppaDSqlManager
         Return ExecuteQuery(setting, query, Nothing, csvStream, csvParameter)
     End Function
 
-    ''' <summary>
-    ''' 
-    ''' </summary>
-    ''' <param name="connect"></param>
-    ''' <param name="query"></param>
-    ''' <param name="csvStream"></param>
-    ''' <param name="csvParameter"></param>
-    ''' <returns></returns>
+    ''' <summary>SQLクエリを実行します。</summary>
+    ''' <param name="connect">DBコネクション。</param>
+    ''' <param name="query">SQLクエリ。</param>
+    ''' <param name="csvStream">CSVストリーム。</param>
+    ''' <param name="csvParameter">CSV変換パラメータ。</param>
+    ''' <returns>影響行数。</returns>
     <Extension()>
     Public Function ExecuteQuery(connect As IDbConnection,
                                  query As String,

@@ -11,7 +11,7 @@ Namespace TokenCollection
         ' 参照しているトークン
         Private ReadOnly mToken As IToken
 
-        ' トークン位置
+        ''' <summary>トークン位置。</summary>
         Public ReadOnly Position As Integer
 
         ''' <summary>格納されている値を取得する。</summary>
@@ -27,6 +27,14 @@ Namespace TokenCollection
         Public ReadOnly Property TokenName As String
             Get
                 Return Me.mToken.TokenName
+            End Get
+        End Property
+
+        ''' <summary>コントロールトークンならば真を返します。</summary>
+        ''' <returns>コントロールトークンならば真。</returns>
+        Public ReadOnly Property IsControlToken As Boolean
+            Get
+                Return TypeOf Me.mToken Is IControlToken
             End Get
         End Property
 

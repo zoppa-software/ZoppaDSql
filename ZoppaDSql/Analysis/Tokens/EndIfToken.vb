@@ -5,7 +5,7 @@ Namespace Analysis.Tokens
 
     ''' <summary>EndIfトークン。</summary>
     Public NotInheritable Class EndIfToken
-        Implements IToken
+        Implements IToken, IControlToken
 
         ''' <summary>遅延インスタンス生成プロパティ。</summary>
         Private Shared ReadOnly Property LazyInstance() As New Lazy(Of EndIfToken)(Function() New EndIfToken())

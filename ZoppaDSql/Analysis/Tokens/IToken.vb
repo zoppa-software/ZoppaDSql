@@ -27,5 +27,10 @@ Namespace Analysis.Tokens
 
     End Interface
 
+    ''' <summary>コンソールマーカーインターフェイス。</summary>
+    Friend Interface IControlToken
+
+    End Interface
+
 End Namespace
 

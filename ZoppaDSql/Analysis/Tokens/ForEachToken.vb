@@ -7,7 +7,7 @@ Namespace Analysis.Tokens
 
     ''' <summary>ForEachトークン。</summary>
     Public NotInheritable Class ForEachToken
-        Implements IToken, ICommandToken
+        Implements IToken, ICommandToken, IControlToken
 
         ' 条件式トークン
         Private ReadOnly mToken As List(Of TokenPosition)
