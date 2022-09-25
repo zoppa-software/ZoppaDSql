@@ -332,21 +332,45 @@ Dim ans2 = "0.1 * 5 <= 0.4".Executes().Contents
 Assert.Equal(ans2, False)
 ```
 #### カンマ区切りで文字列を分割できます
+`"`のエスケープを考慮して文字列を区切ります。分割した文字列は`CsvItem`構造体に格納されます。`Text`プロパティではエスケープは解除されませんが、`UnEscape`メソッドではエスケープを解除します。  
 ``` vb
-Dim csv = CsvSpliter.CreateSpliter("あ, い, う, え, お").Split().Select(Of String)(Function(i) i.UnEscape()).ToArray()
-Assert.Equal(csv, New String() {"あ", "い", "う", "え", "お"})
+Dim csv = CsvSpliter.CreateSpliter("あ,い,う,え,""お,を""").Split()
+Assert.Equal(csv(0).UnEscape(), "あ")
+Assert.Equal(csv(1).UnEscape(), "い")
+Assert.Equal(csv(2).UnEscape(), "う")
+Assert.Equal(csv(3).UnEscape(), "え")
+Assert.Equal(csv(4).UnEscape(), "お,を")
+Assert.Equal(csv(4).Text, """お,を""")
 ```
 #### CSVファイルを読み込みます
-#### CSVファイルを読み込み、簡単なマッパー機能を使用してインスタンスを生成します
+* ストリーム、イテレータを使用して読み込みます
+基本的な使い方はストリームを用意し、イテレータを使用して読み込みます。
+``` vb
+Using sr As New CsvReaderStream("CsvFiles\Sample3.csv", Encoding.GetEncoding("shift_jis"))
+    For Each pointer In sr
+        Console.Out.WriteLine($"{pointer.Items(0).UnEscape()}, {pointer.Items(1).UnEscape()}, …")
+    Next
+End Using
+```
+ストリームクラスは`IEnumerable`インターフェイスを実装しているため一行の情報を`CsvReaderStream.Pointer`構造体で取得できます。  
+読み込んだ行番号(`Row`プロパティ)と各項目の情報(`Items`プロパティ、`CsvItem`構造体のリスト)を持っているため参照します。  
+
+* 条件を指定して読み込みます
+`WhereCsv`メソッドを使用すると二つの式を与えてCSVの情報をインスタンスに変換できます。  
+    * 一つ目の式は対象の行を決定するための式です  
+    * 二つ目の式はインスタンスを生成して返します  
+
+以下の例では、一つ目の式にヘッダ行を除くため2行目以降（`row >= 1`）を指定し、二つ目の式は`Sample1Csv`のインスタンスを生成します。  
 ``` vb
 Dim ans As New List(Of Sample1Csv)()
 Using sr As New CsvReaderStream("CsvFiles\Sample1.csv", Encoding.GetEncoding("shift_jis"))
 ans = sr.WhereCsv(Of Sample1Csv)(
     Function(row, item) row >= 1,
-    CsvType.CsvString, CsvType.CsvString, CsvType.CsvString
+    Function(row, item) New Sample1Csv(item(0).UnEscape(), item(1).UnEscape(), item(2).UnEscape())
 ).ToList()
 End Using
 ```
+
 ``` vb
 Class Sample1Csv
     Public ReadOnly Property Item1 As String
@@ -360,7 +384,18 @@ Class Sample1Csv
     End Sub
 End Class
 ```
-
+`ICsvType`インターフェイスを実装したインスタンスを与えることで、インスタンスを生成するコンストラクタを指定できます。  
+以下の例では`String`型の引数を3つ持つコンストラクタを利用してインスタンスを生成します。
+``` vb
+Dim ans As New List(Of Sample1Csv)()
+Using sr As New CsvReaderStream("CsvFiles\Sample1.csv", Encoding.GetEncoding("shift_jis"))
+ans = sr.WhereCsv(Of Sample1Csv)(
+    Function(row, item) row >= 1,
+    CsvType.CsvString, CsvType.CsvString, CsvType.CsvString
+).ToList()
+End Using
+```
+  
 ## インストール
 ソースをビルドして `ZoppaDSql.dll` ファイルを生成して参照してください。  
 Nugetにライブラリを公開しています。[ZoppaDSql](https://www.nuget.org/packages/ZoppaDSql/#readme-body-tab)を参照してください。

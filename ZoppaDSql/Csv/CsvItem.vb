@@ -13,9 +13,13 @@ Namespace Csv
         End Sub
 
         ''' <summary>エスケープを解除して返す。</summary>
+        ''' <param name="isFirstTrim">エスケープ解除前にトリムするならば真。</param>
         ''' <returns>CSV項目文字列。</returns>
-        Public Function UnEscape() As String
+        Public Function UnEscape(Optional isFirstTrim As Boolean = True) As String
             Dim str = Me.Text
+            If isFirstTrim Then
+                str = str.Trim()
+            End If
             If str.Length >= 2 AndAlso str(0) = """"c AndAlso str(str.Length - 1) = """"c Then
                 ' "のエスケープを解除して返す
                 Dim slice = Me.Raw.Slice(1, Me.Raw.Length - 2)

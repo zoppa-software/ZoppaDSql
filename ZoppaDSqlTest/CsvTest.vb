@@ -136,8 +136,32 @@ Namespace ZoppaDSqlTest
 
         <Fact>
         Public Sub SplitTest()
-            Dim csv = CsvSpliter.CreateSpliter("あ, い, う, え, お").Split().Select(Of String)(Function(i) i.UnEscape()).ToArray()
-            Assert.Equal(csv, New String() {"あ", "い", "う", "え", "お"})
+            Dim csv = CsvSpliter.CreateSpliter("あ,い,う,え,""お,を""").Split()
+            Assert.Equal(csv(0).UnEscape(), "あ")
+            Assert.Equal(csv(1).UnEscape(), "い")
+            Assert.Equal(csv(2).UnEscape(), "う")
+            Assert.Equal(csv(3).UnEscape(), "え")
+            Assert.Equal(csv(4).UnEscape(), "お,を")
+            Assert.Equal(csv(4).Text, """お,を""")
+
+            Using sr As New CsvReaderStream("CsvFiles\Sample3.csv", Encoding.GetEncoding("shift_jis"))
+                For Each pointer In sr
+                    Console.Out.WriteLine($"{pointer.Items(0).UnEscape()}, {pointer.Items(1).UnEscape()}, …")
+                Next
+            End Using
+
+            Dim ans As New List(Of Sample1Csv)()
+            Using sr As New CsvReaderStream("CsvFiles\Sample1.csv", Encoding.GetEncoding("shift_jis"))
+                ans = sr.WhereCsv(Of Sample1Csv)(
+                    Function(row, item) row >= 1,
+                    Function(row, item) New Sample1Csv(item(0).UnEscape(), item(1).UnEscape(), item(2).UnEscape())
+                ).ToList()
+            End Using
+            Assert.Equal(4, ans.Count)
+            Assert.Equal(New Sample1Csv("1", "2", "3"), ans(0))
+            Assert.Equal(New Sample1Csv("1,1", $"2{vbCrLf}2", " 3.""3 "), ans(1))
+            Assert.Equal(New Sample1Csv("a", "b", "c"), ans(2))
+            Assert.Equal(New Sample1Csv("1", "2", "3"), ans(3))
         End Sub
 
     End Class
