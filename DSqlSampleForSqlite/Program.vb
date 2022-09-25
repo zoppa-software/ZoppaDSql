@@ -38,14 +38,13 @@ where
 
             Using sr As New CsvReaderStream("Sample.csv")
                 Using tran = sqlite.BeginTransaction()
-                    Await sqlite.SetTransaction(tran).ExecuteQuerySync("delete from SampleDB")
+                    sqlite.SetTransaction(tran).ExecuteQuery("delete from SampleDB")
 
                     Dim query2 = "insert into SampleDB (indexno, name) values (@indexno, @name)"
                     Dim builder As New CsvParameterBuilder()
                     builder.Add("indexno", CsvType.CsvInteger)
                     builder.Add("name", CsvType.CsvString)
                     Dim ans3 = sqlite.SetTransaction(tran).ExecuteQuery(query2, sr, builder)
-                    Dim a As Integer = 50
 
                     tran.Commit()
                 End Using

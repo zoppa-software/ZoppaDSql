@@ -308,6 +308,27 @@ Dim ansPersons = Me.mSQLite.ExecuteRecords(Of Person)(
 ```
   
 ### パラメータにCSVファイルを与えてSQLクエリを実行します
+単体テストなど大量データのインサート用にCSVファイルから直接パラメータ値を取得する仕組みを用意しました。  
+以下の例を参照してください。  
+``` vb
+Using sr As New CsvReaderStream("Sample.csv")
+    Using tran = sqlite.BeginTransaction()
+        ' 実行するSQL文
+        Dim query = "insert into SampleDB (indexno, name) values (@indexno, @name)"
+
+        ' CSVファイルの各列の型を保持するbuilderを生成
+        Dim builder As New CsvParameterBuilder()
+        builder.Add("indexno", CsvType.CsvInteger)
+        builder.Add("name", CsvType.CsvString)
+
+        ' CSVストリームとbuilderをパラメータに与えて実行
+        ' ※ 非同期実行するとファイルが先にCloseされるため同期実行します
+        sqlite.SetTransaction(tran).ExecuteQuery(query, sr, builder)
+
+        tran.Commit()
+    End Using
+End Using
+```
 ### ログファイル出力機能を有効にします
 動的SQLを使用したとき、生成されたSQL文を確認したい時があります。そのためにZoppaDSqlではログファイル出力機能があります。  
 デフォルトのログファイル出力機能を有効にするには以下のコードを実行します。引数にログファイルパスを指定するとログファイルを変更することができます。初期値はカレントディレクトリの`zoppa_dsql.txt`ファイルに出力されます。  
