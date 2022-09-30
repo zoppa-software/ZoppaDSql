@@ -244,9 +244,9 @@ Namespace Analysis
             Return tokens
         End Function
 
-        ''' <summary>文字列トークンを生成します。</summary>
+        ''' <summary>日時トークンを生成します。</summary>
         ''' <param name="reader">入力文字ストリーム。</param>
-        ''' <returns>文字列トークン。</returns>
+        ''' <returns>日時トークン。</returns>
         Private Function CreateDateToken(reader As StringPtr) As ObjectToken
             Dim res As New StringBuilder()
             Dim closed = False
@@ -297,7 +297,7 @@ Namespace Analysis
                 If c = "\"c AndAlso reader.Current = "'"c Then
                     res.Append("'"c)
                     reader.Move(1)
-                ElseIf c = ","c AndAlso reader.Current = "'"c Then
+                ElseIf c = "'"c AndAlso reader.Current = "'"c Then
                     res.Append("'"c)
                     reader.Move(1)
                 ElseIf c <> "'"c Then
