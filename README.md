@@ -419,7 +419,7 @@ End Using
   
 ## インストール
 ソースをビルドして `ZoppaDSql.dll` ファイルを生成して参照してください。  
-Nugetにライブラリを公開しています。[ZoppaDSql](https://www.nuget.org/packages/ZoppaDSql/#readme-body-tab)を参照してください。
+Nugetにライブラリを公開しています。[ZoppaDSql](https://www.nuget.org/packages/ZoppaDSql/)を参照してください。
 
 ## 作成情報
 * 造田　崇（zoppa software）
