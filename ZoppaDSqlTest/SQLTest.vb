@@ -70,6 +70,12 @@ PRIMARY KEY(name)
             )
             Assert.Equal(zodiacs, ansZodiacs.ToArray())
 
+            Dim selZodiacs = Me.mSQLite.ExecuteRecords(Of Zodiac)(
+                "select name, jp_name, from_date, to_date from Zodiac where jp_name = @jname",
+                New With {.jname = CType("双子座", DbString)}
+            )
+            Assert.Equal(New Zodiac() {zodiacs(2)}, selZodiacs.ToArray())
+
             Dim tran3 = Me.mSQLite.BeginTransaction()
             Try
                 Me.mSQLite.SetTransaction(tran3).ExecuteQuery(

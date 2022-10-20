@@ -2,9 +2,7 @@
 Option Explicit On
 
 Imports System.Data
-Imports System.Data.Common
 Imports System.Runtime.CompilerServices
-Imports System.Transactions
 
 ''' <summary>SQL実行用パラメータ APIです。</summary>
 Public Module ZoppaDSqlSetting
@@ -27,6 +25,8 @@ Public Module ZoppaDSqlSetting
         End Set
     End Property
 
+    Public Property DefaultSqlParameterCheck As Action(Of IDbDataParameter) = Nothing
+
     ''' <summary>デフォルトパラメータ接頭辞を設定、取得します。</summary>
     ''' <returns>パラメータ接頭辞。</returns>
     Public Property DefaultParameterPrefix As PrefixType = PrefixType.AtMark
@@ -37,7 +37,7 @@ Public Module ZoppaDSqlSetting
     ''' <returns>設定値。</returns>
     <Extension()>
     Public Function SetTimeoutSecond(dbConnection As IDbConnection, timeout As Integer) As Settings
-        Return New Settings(dbConnection, timeout, Nothing, DefaultParameterPrefix, CommandType.Text)
+        Return New Settings(dbConnection, timeout, Nothing, DefaultParameterPrefix, CommandType.Text, DefaultSqlParameterCheck)
     End Function
 
     ''' <summary>タイムアウト値を設定します。</summary>
@@ -47,7 +47,7 @@ Public Module ZoppaDSqlSetting
     <Extension()>
     Public Function SetTimeoutSecond(prevSetting As Settings, timeout As Integer) As Settings
         With prevSetting
-            Return New Settings(.DbConnection, timeout, .Transaction, .ParameterPrefix, .CommandType)
+            Return New Settings(.DbConnection, timeout, .Transaction, .ParameterPrefix, .CommandType, .ParameterChecker)
         End With
     End Function
 
@@ -57,7 +57,7 @@ Public Module ZoppaDSqlSetting
     ''' <returns>設定値。</returns>
     <Extension()>
     Public Function SetTransaction(dbConnection As IDbConnection, transaction As IDbTransaction) As Settings
-        Return New Settings(dbConnection, DefaultTimeoutSecond, transaction, DefaultParameterPrefix, CommandType.Text)
+        Return New Settings(dbConnection, DefaultTimeoutSecond, transaction, DefaultParameterPrefix, CommandType.Text, DefaultSqlParameterCheck)
     End Function
 
     ''' <summary>トランザクションを設定します。</summary>
@@ -67,7 +67,7 @@ Public Module ZoppaDSqlSetting
     <Extension()>
     Public Function SetTransaction(prevSetting As Settings, transaction As IDbTransaction) As Settings
         With prevSetting
-            Return New Settings(.DbConnection, .TimeOutSecond, transaction, .ParameterPrefix, .CommandType)
+            Return New Settings(.DbConnection, .TimeOutSecond, transaction, .ParameterPrefix, .CommandType, .ParameterChecker)
         End With
     End Function
 
@@ -77,7 +77,7 @@ Public Module ZoppaDSqlSetting
     ''' <returns>設定値。</returns>
     <Extension()>
     Public Function SetParameterPrepix(dbConnection As IDbConnection, prefix As PrefixType) As Settings
-        Return New Settings(dbConnection, DefaultTimeoutSecond, Nothing, prefix, CommandType.Text)
+        Return New Settings(dbConnection, DefaultTimeoutSecond, Nothing, prefix, CommandType.Text, DefaultSqlParameterCheck)
     End Function
 
     ''' <summary>使用するパラメータ接頭辞を指定します。</summary>
@@ -87,7 +87,7 @@ Public Module ZoppaDSqlSetting
     <Extension()>
     Public Function SetParameterPrepix(prevSetting As Settings, prefix As PrefixType) As Settings
         With prevSetting
-            Return New Settings(.DbConnection, .TimeOutSecond, .Transaction, prefix, .CommandType)
+            Return New Settings(.DbConnection, .TimeOutSecond, .Transaction, prefix, .CommandType, .ParameterChecker)
         End With
     End Function
 
@@ -97,7 +97,7 @@ Public Module ZoppaDSqlSetting
     ''' <returns>設定値。</returns>
     <Extension()>
     Public Function SetCommandType(dbConnection As IDbConnection, cmdType As CommandType) As Settings
-        Return New Settings(dbConnection, DefaultTimeoutSecond, Nothing, DefaultParameterPrefix, cmdType)
+        Return New Settings(dbConnection, DefaultTimeoutSecond, Nothing, DefaultParameterPrefix, cmdType, DefaultSqlParameterCheck)
     End Function
 
     ''' <summary>コマンドタイプを指定します。</summary>
@@ -107,7 +107,27 @@ Public Module ZoppaDSqlSetting
     <Extension()>
     Public Function SetCommandType(prevSetting As Settings, cmdType As CommandType) As Settings
         With prevSetting
-            Return New Settings(.DbConnection, .TimeOutSecond, .Transaction, .ParameterPrefix, cmdType)
+            Return New Settings(.DbConnection, .TimeOutSecond, .Transaction, .ParameterPrefix, cmdType, .ParameterChecker)
+        End With
+    End Function
+
+    ''' <summary>SQLパラメータチェックを指定します。</summary>
+    ''' <param name="dbConnection">DBコネクション。</param>
+    ''' <param name="checker">SQLパラメータチェック。</param>
+    ''' <returns>設定値。</returns>
+    <Extension()>
+    Public Function SetParameterChecker(dbConnection As IDbConnection, checker As Action(Of IDbDataParameter)) As Settings
+        Return New Settings(dbConnection, DefaultTimeoutSecond, Nothing, DefaultParameterPrefix, CommandType.Text, checker)
+    End Function
+
+    ''' <summary>SQLパラメータチェックを指定します。</summary>
+    ''' <param name="prevSetting">設定済み情報。</param>
+    ''' <param name="checker">SQLパラメータチェック。</param>
+    ''' <returns>設定値。</returns>
+    <Extension()>
+    Public Function SetParameterChecker(prevSetting As Settings, checker As Action(Of IDbDataParameter)) As Settings
+        With prevSetting
+            Return New Settings(.DbConnection, .TimeOutSecond, .Transaction, .ParameterPrefix, .CommandType, checker)
         End With
     End Function
 
@@ -128,6 +148,9 @@ Public Module ZoppaDSqlSetting
 
         ' コマンドタイプ
         Private mCmdType As CommandType
+
+        ' SQLパラメータチェック
+        Private mPrmCheck As Action(Of IDbDataParameter)
 
         ''' <summary>タイムアウト設定を取得します。</summary>
         ''' <returns>タイムアウト時間（秒数）</returns>
@@ -161,6 +184,14 @@ Public Module ZoppaDSqlSetting
             End Get
         End Property
 
+        ''' <summary>SQLパラメータチェックを取得します。</summary>
+        ''' <returns>SQLパラメータチェック。</returns>
+        Public ReadOnly Property ParameterChecker As Action(Of IDbDataParameter)
+            Get
+                Return Me.mPrmCheck
+            End Get
+        End Property
+
         ''' <summary>コンストラクタ。</summary>
         ''' <param name="dbCon">DBコネクション。</param>
         Friend Sub New(dbCon As IDbConnection)
@@ -169,6 +200,7 @@ Public Module ZoppaDSqlSetting
             Me.mTran = Nothing
             Me.mVarPrefix = DefaultParameterPrefix
             Me.mCmdType = CommandType.Text
+            Me.mPrmCheck = Nothing
         End Sub
 
         ''' <summary>コンストラクタ。</summary>
@@ -177,16 +209,19 @@ Public Module ZoppaDSqlSetting
         ''' <param name="tran">トランザクション。</param>
         ''' <param name="varPrex">パラメータ接頭辞。</param>
         ''' <param name="cmdType">SQLコマンドのタイプ</param>
+        ''' <param name="prmCheck">SQLパラメータチェック。</param>
         Friend Sub New(dbCon As IDbConnection,
                        timeOut As Integer,
                        tran As IDbTransaction,
                        varPrex As PrefixType,
-                       cmdType As CommandType)
+                       cmdType As CommandType,
+                       prmCheck As Action(Of IDbDataParameter))
             Me.DbConnection = dbCon
             Me.mTimeOut = timeOut
             Me.mTran = tran
             Me.mVarPrefix = varPrex
             Me.mCmdType = cmdType
+            Me.mPrmCheck = prmCheck
         End Sub
 
     End Structure

@@ -48,8 +48,9 @@ Public Module ZoppaDSqlManager
     ''' <param name="command">SQLコマンド。</param>
     ''' <param name="parameter">パラメータ。</param>
     ''' <param name="varFormat">変数フォーマット。</param>
+    ''' <param name="prmChecker">SQLパラメータチェック。</param>
     ''' <returns>プロパティインフォ。</returns>
-    Private Function SetSqlParameterDefine(command As IDbCommand, parameter As Object(), varFormat As String) As PropertyInfo()
+    Private Function SetSqlParameterDefine(command As IDbCommand, parameter As Object(), varFormat As String, prmChecker As Action(Of IDbDataParameter)) As PropertyInfo()
         Dim props = New PropertyInfo(-1) {}
         Dim params = parameter.Where(Function(v) v IsNot Nothing)
         If params.Any() Then
@@ -76,6 +77,13 @@ Public Module ZoppaDSqlManager
                     command.Parameters.Add(prm)
                 End If
             Next
+
+            ' パラメータのチェックをする
+            If prmChecker IsNot Nothing Then
+                For Each prm As IDbDataParameter In command.Parameters
+                    prmChecker(prm)
+                Next
+            End If
         End If
         Return props
     End Function
@@ -161,7 +169,13 @@ Public Module ZoppaDSqlManager
         Dim res = True
         Select Case propType
             Case GetType(String)
+                'dbType = DbType.String
+
+            Case GetType(DBString)
                 dbType = DbType.String
+
+            Case GetType(DBAnsiString)
+                dbType = DbType.AnsiString
 
             Case GetType(Integer), GetType(Integer?)
                 dbType = DbType.Int32
@@ -206,6 +220,22 @@ Public Module ZoppaDSqlManager
                 res = False
         End Select
         Return res
+    End Function
+
+    ''' <summary>DbType.String型の変数を作成する。</summary>
+    ''' <param name="str">文字列。</param>
+    ''' <returns>DbType.String型</returns>
+    <Extension()>
+    Public Function DbStr(str As String) As DbString
+        Return New DbString(str)
+    End Function
+
+    ''' <summary>DbType.AnsiString型の変数を作成する。</summary>
+    ''' <param name="str">文字列。</param>
+    ''' <returns>DbType.AnsiString型</returns>
+    <Extension()>
+    Public Function DbAnsi(str As String) As DBAnsiString
+        Return New DBAnsiString(str)
     End Function
 
     ''' <summary>マッピングするコンストラクタを取得します。</summary>
@@ -275,7 +305,7 @@ Public Module ZoppaDSqlManager
                 command.CommandType = setting.CommandType
 
                 ' パラメータの定義を設定
-                Dim props = SetSqlParameterDefine(command, sqlParameter, varFormat)
+                Dim props = SetSqlParameterDefine(command, sqlParameter, varFormat, setting.ParameterChecker)
 
                 Dim constructor As ConstructorInfo = Nothing
                 For Each prm In sqlParameter
@@ -593,7 +623,7 @@ Public Module ZoppaDSqlManager
                 command.CommandType = setting.CommandType
 
                 ' パラメータの定義を設定
-                Dim props = SetSqlParameterDefine(command, sqlParameter, varFormat)
+                Dim props = SetSqlParameterDefine(command, sqlParameter, varFormat, setting.ParameterChecker)
 
                 For Each prm In sqlParameter
                     ' パラメータ変数に値を設定
@@ -917,7 +947,7 @@ Public Module ZoppaDSqlManager
                 command.CommandType = setting.CommandType
 
                 ' パラメータの定義を設定
-                Dim props = SetSqlParameterDefine(command, sqlParameter, varFormat)
+                Dim props = SetSqlParameterDefine(command, sqlParameter, varFormat, setting.ParameterChecker)
 
                 For Each prm In sqlParameter
                     ' パラメータ変数に値を設定
