@@ -11,6 +11,8 @@ Project("{778DAE3C-4631-46EA-AA77-85C1314464D9}") = "DSqlSampleForSqlite", "DSql
 EndProject
 Project("{F184B08F-C81C-45F6-A57F-5ABD9991F28F}") = "DSqlSampleForSQLServer", "DSqlSampleForSQLServer\DSqlSampleForSQLServer.vbproj", "{D9765098-A729-4A15-9A27-908F2BFFC37B}"
 EndProject
+Project("{F184B08F-C81C-45F6-A57F-5ABD9991F28F}") = "DSqlSampleForOracle", "DSqlSampleForOracle\DSqlSampleForOracle.vbproj", "{DFC9403F-0E6F-43D8-86D2-69679A4B60D2}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -33,6 +35,10 @@ Global
 		{D9765098-A729-4A15-9A27-908F2BFFC37B}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{D9765098-A729-4A15-9A27-908F2BFFC37B}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{D9765098-A729-4A15-9A27-908F2BFFC37B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{DFC9403F-0E6F-43D8-86D2-69679A4B60D2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DFC9403F-0E6F-43D8-86D2-69679A4B60D2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DFC9403F-0E6F-43D8-86D2-69679A4B60D2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DFC9403F-0E6F-43D8-86D2-69679A4B60D2}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

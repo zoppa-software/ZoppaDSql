@@ -169,7 +169,7 @@ Public Module ZoppaDSqlManager
         Dim res = True
         Select Case propType
             Case GetType(String)
-                'dbType = DbType.String
+                dbType = DbType.String
 
             Case GetType(DBString)
                 dbType = DbType.String

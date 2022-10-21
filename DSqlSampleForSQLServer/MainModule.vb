@@ -28,6 +28,7 @@ where
         Dim k = ZoppaDSqlManager.Compile(query0, New With {.searchCuntry = Nothing, .searchCity = Nothing, .searchCity2 = "2"})
 
 
+        Using sqlsvr As New SqlConnection()
             sqlsvr.Open()
 
             Dim query1 = "" &

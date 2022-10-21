@@ -25,6 +25,8 @@ Public Module ZoppaDSqlSetting
         End Set
     End Property
 
+    ''' <summary>デフォルトのSQLパラメータチェックを設定、取得します。</summary>
+    ''' <returns>パラメータチェック式。</returns>
     Public Property DefaultSqlParameterCheck As Action(Of IDbDataParameter) = Nothing
 
     ''' <summary>デフォルトパラメータ接頭辞を設定、取得します。</summary>
