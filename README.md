@@ -273,9 +273,10 @@ End Try
 | メソッド | 内容 |  
 | ---- | ---- | 
 | SetTransaction | トランザクションを設定します。 | 
-| SetTimeoutSecond | SQLタイムアウトを設定します（秒数）、デフォルト値は30秒です。 | 
-| SetParameterPrepix | SQLパラメータの接頭辞を設定します、デフォルトは`@`です。 | 
-| SetCommandType | SQLのコマンドタイプを設定します、デフォルト値は`CommandType.Text`です。 |
+| SetTimeoutSecond | SQLタイムアウトを設定します（秒数）、デフォルト値は30秒です。</br>デフォルト値は `ZoppaDSqlSetting.DefaultTimeoutSecond` で変更してください。 | 
+| SetParameterPrepix | SQLパラメータの接頭辞を設定します、デフォルトは `@` です。</br>デフォルト値は `ZoppaDSqlSetting.DefaultParameterPrefix` で変更してください。 | 
+| SetCommandType | SQLのコマンドタイプを設定します、デフォルト値は `CommandType.Text` です。 |
+| SetParameterChecker | SQLパラメータチェック式を設定します。デフォルト値は `Null` です。</br>デフォルトs式は `ZoppaDSqlSetting.DefaultSqlParameterCheck` で変更してください。 |
   
 ### インスタンス生成をカスタマイズします
 検索結果が 多対1 など一つのインスタンスで表現できない場合、インスタンスの生成をカスタマイズする必要があります。  
