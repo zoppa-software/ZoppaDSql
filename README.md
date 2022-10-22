@@ -417,6 +417,45 @@ ans = sr.WhereCsv(Of Sample1Csv)(
 ).ToList()
 End Using
 ```
+
+## 注意
+Oracle DB を対象にマッパー機能でSQLパラメーターを与えるとき、ODP.NET, Managed Driver の OracleParameter の以下の仕様から日本語の検索が正しくできないと思われます。  
+> OracleParameter.DbType に DbType.String を設定した場合、OracleDbType には OracleDbType.Varchar2 が設定されます  
+> *OracleDbType.NVarchar2 ではありません*  
+
+上記の仕様が問題になる可能性があるので、`IDbDataParameter` を使用前にチェックする式を設定する機能を追加しました。  
+以下の例をご覧ください。  
+``` vb
+Using ora As New OracleConnection()
+    ora.ConnectionString = "接続文字列"
+    ora.Open()
+
+    Dim tbl = ora.
+        SetParameterPrepix(PrefixType.Colon).
+        SetParameterChecker(
+            Sub(chk)
+                Dim prm = TryCast(chk, Oracle.ManagedDataAccess.Client.OracleParameter)
+                If prm?.OracleDbType = OracleDbType.Varchar2 Then
+                    prm.OracleDbType = OracleDbType.NVarchar2
+                End If
+            End Sub).
+        ExecuteRecords(Of RFLVGROUP)(
+            "select * from GROUP where SYAIN_NO = :SyNo ",
+            New With {.SyNo = CType("105055", DbString)}
+        )
+End Using
+```
+拡張メソッド `SetParameterChecker` では生成した `IDbDataParameter` を順次引き渡すので、`OracleDbType` を式内で変更しています。
+全てのSQLに適用したい場合はデフォルトの式を変更します。  
+``` vb
+ZoppaDSqlSetting.DefaultSqlParameterCheck =
+    Sub(chk)
+        Dim prm = TryCast(chk, Oracle.ManagedDataAccess.Client.OracleParameter)
+        If prm?.OracleDbType = OracleDbType.Varchar2 Then
+            prm.OracleDbType = OracleDbType.NVarchar2
+        End If
+    End Sub
+```
   
 ## インストール
 ソースをビルドして `ZoppaDSql.dll` ファイルを生成して参照してください。  

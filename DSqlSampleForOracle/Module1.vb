@@ -12,7 +12,7 @@ Module Module1
         '                                            End Sub
 
         Using ora As New OracleConnection()
-            ora.ConnectionString = ""
+            ora.ConnectionString = "接続文字列"
             ora.Open()
 
             Dim tbl = ora.
