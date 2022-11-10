@@ -228,6 +228,8 @@ Partial Module ZoppaDSqlManager
                 Using sw As New StreamWriter(Me.mLogFile.FullName, True, Me.mEncode)
                     Dim writed As Boolean
                     Do
+                        Threading.Thread.Sleep(10)
+                                
                         ' キュー内の文字列を取得
                         writed = False
                         Dim ln As LogData? = Nothing
@@ -244,7 +246,6 @@ Partial Module ZoppaDSqlManager
                             sw.WriteLine(ln)
                             writed = True
                         End If
-                        Threading.Thread.Sleep(50)
                     Loop While writed
                 End Using
             Catch ex As Exception
