@@ -330,6 +330,46 @@ Using sr As New CsvReaderStream("Sample.csv")
     End Using
 End Using
 ```
+  
+### 実行結果をDataTable、または DynamicObjectで取得します
+SQLを実行した結果を取得するためだけにクラスを定義するとクラスの数が増えて管理するのも大変になることもあります。そのため、`DataTable`型、または動的な型（`DynamicObject`）で取得するメソッドを用意しました。  
+  
+`DataTable`型で取得する例は以下のようになります。  
+Rowsプロパティなど使用して実行結果を取得してください。  
+``` vb
+Dim tbl = Await Me.mSQLite.ExecuteTableSync(
+    "select * from Person where zodiac = @Zodiac",
+    New With {.Zodiac = "Aries"}
+)
+```
+  
+動的な型（`DynamicObject`）で取得する例は以下のようになります。  
+(C#では`dynamic`キーワードで動的な型を宣言します。vb.netでは`Object`です。この例ではわかりやすいようにC#で記述しています)  
+``` csharp
+using (var sqlite = new SQLiteConnection("Data Source=chinook.db")) {
+    sqlite.Open();
+
+    var query = 
+@"select
+  albumid, title, name
+from
+  albums
+inner join artists on
+  albums.ArtistId = artists.ArtistId
+{trim}
+where
+  {if seachId <> NULL }albums.ArtistId = @seachId{end if}
+{end trim}";
+
+    var ans = sqlite.ExecuteObject(query, new { seachId = 11 });
+    foreach (dynamic v in ans) {
+        Console.WriteLine("AlbumId={0}, AlbumTitle={1}, ArtistName={2}", v.albumid, v.title, v.name);
+    }
+}
+```
+実行結果を受け取る`foreach`処理で実行結果は`dynamic`で受け取っています。albumid、title、nameは`dynamic`型のメンバーではないですが、`ZoppaDSql`内でselect実行結果の列名から動的に追加したものになり、取得することができます。  
+※ 動的な型を使用すると記述は簡潔になりますがメンテナンス性は悪くなると考えられます。使用には注意してください
+  
 ### ログファイル出力機能を有効にします
 動的SQLを使用したとき、生成されたSQL文を確認したい時があります。そのためにZoppaDSqlではログファイル出力機能があります。  
 デフォルトのログファイル出力機能を有効にするには以下のコードを実行します。引数にログファイルパスを指定するとログファイルを変更することができます。初期値はカレントディレクトリの`zoppa_dsql.txt`ファイルに出力されます。  

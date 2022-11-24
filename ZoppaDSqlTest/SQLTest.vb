@@ -6,6 +6,7 @@ Imports ZoppaDSql.Analysis
 Imports System.Text
 Imports ZoppaDSql.Csv
 Imports System.Data.SQLite
+Imports System.Data
 
 Namespace ZoppaDSqlTest
 
@@ -185,6 +186,65 @@ PRIMARY KEY(name)
             Dim tran3 = Me.mSQLite.BeginTransaction()
             Try
                 Me.mSQLite.SetTransaction(tran3).ExecuteQuery("DROP TABLE Zodiac")
+                Me.mSQLite.SetTransaction(tran3).ExecuteQuery("DROP TABLE Person")
+                tran3.Commit()
+            Catch ex As Exception
+                tran3.Rollback()
+            End Try
+        End Sub
+
+        <Fact>
+        Public Async Sub ParameterCheckerTest()
+            Dim tran1 = Me.mSQLite.BeginTransaction()
+            Try
+                Me.mSQLite.SetTransaction(tran1).ExecuteQuery(
+"CREATE TABLE Person (
+name TEXT,
+zodiac TEXT,
+birth_day DATETIME NOT NULL,
+PRIMARY KEY(name)
+)")
+
+                tran1.Commit()
+            Catch ex As Exception
+                tran1.Rollback()
+            End Try
+
+            Dim persons = New Person() {
+    New Person("佐藤 健", "Aries", New Date(1989, 3, 21)),
+    New Person("岩城 滉一", "Aries", New Date(1951, 3, 21)),
+    New Person("大橋 巨泉", "Aries", New Date(1934, 3, 22)),
+    New Person("阿部 サダヲ", "Taurus", New Date(1970, 4, 23)),
+    New Person("大沢 樹生", "Taurus", New Date(1969, 4, 20)),
+    New Person("有吉 弘行", "Gemini", New Date(1974, 5, 31))
+}
+
+            Dim tran = Me.mSQLite.BeginTransaction()
+            Try
+                Me.mSQLite.SetTransaction(tran).ExecuteQuery(
+                    "INSERT INTO Person (name, zodiac, birth_day) 
+                    VALUES (@Name, @Zodiac, @BirthDay)", Nothing, persons)
+
+                tran.Commit()
+            Catch ex As Exception
+                tran.Rollback()
+            End Try
+
+            Dim tbl = Await Me.mSQLite.
+                SetParameterChecker(
+                    Sub(prm)
+                        prm.DbType = DbType.String
+                    End Sub
+                ).
+                ExecuteTableSync(
+                    "select * from Person where zodiac = @Zodiac",
+                    New With {.Zodiac = "Aries"}
+                )
+
+            Assert.Equal(tbl.Rows.Count, 3)
+
+            Dim tran3 = Me.mSQLite.BeginTransaction()
+            Try
                 Me.mSQLite.SetTransaction(tran3).ExecuteQuery("DROP TABLE Person")
                 tran3.Commit()
             Catch ex As Exception
