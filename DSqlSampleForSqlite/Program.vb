@@ -36,6 +36,11 @@ where
                 Console.WriteLine("AlbumId={0}, AlbumTitle={1}, ArtistName={2}", v.AlbumId, v.AlbumTitle, v.ArtistName)
             Next
 
+            Dim ans4 = Await sqlite.ExecuteObjectSync(query1, New With {.seachId = 11})
+            For Each v As Object In ans4
+                Console.WriteLine("AlbumId={0}, AlbumTitle={1}, ArtistName={2}", v.albumid, v.title, v.name)
+            Next
+
             Using sr As New CsvReaderStream("Sample.csv")
                 Using tran = sqlite.BeginTransaction()
                     sqlite.SetTransaction(tran).ExecuteQuery("delete from SampleDB")

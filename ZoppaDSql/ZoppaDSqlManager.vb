@@ -2,6 +2,7 @@
 Option Explicit On
 
 Imports System.Data
+Imports System.Dynamic
 Imports System.Reflection
 Imports System.Runtime.CompilerServices
 Imports System.Text
@@ -171,7 +172,7 @@ Public Module ZoppaDSqlManager
             Case GetType(String)
                 dbType = DbType.String
 
-            Case GetType(DBString)
+            Case GetType(DbString)
                 dbType = DbType.String
 
             Case GetType(DBAnsiString)
@@ -241,24 +242,59 @@ Public Module ZoppaDSqlManager
     ''' <summary>マッピングするコンストラクタを取得します。</summary>
     ''' <typeparam name="T">対象の型。</typeparam>
     ''' <param name="reader">データリーダー。</param>
+    ''' <param name="allowNul">Null許容の列リスト。</param>
     ''' <returns>コンストラクタインフォ。</returns>
-    Private Function CreateConstructorInfo(Of T)(reader As IDataReader) As ConstructorInfo
+    Private Function CreateConstructorInfo(Of T)(reader As IDataReader, allowNul As List(Of Integer)) As ConstructorInfo
         ' 各列のデータ型を取得
-        Dim columns As New List(Of Type)()
-        For i As Integer = 0 To reader.FieldCount - 1
-            'Dim dbType = GetDbType(reader.GetFieldType(i))
-            columns.Add(reader.GetFieldType(i))
+        Dim columNames As New List(Of String)()
+        Dim columTypes As New List(Of Type)()
+        Dim columAllow As New List(Of Boolean)()
+        allowNul.Clear()
+
+        Dim tbl = reader.GetSchemaTable()
+        Dim idx As Integer = 0
+        For Each r As DataRow In tbl.Rows
+            columNames.Add(r("ColumnName").ToString())
+
+            columTypes.Add(CType(r("DataType"), Type))
+
+            Dim allow = CBool(r("AllowDBNull"))
+            columAllow.Add(allow)
+            If allow Then
+                allowNul.Add(idx)
+            End If
+            idx += 1
         Next
 
         ' コンストラクタを取得
-        Dim constructor = GetType(T).GetConstructor(columns.ToArray())
+        Dim constructor = GetType(T).GetConstructor(columTypes.ToArray())
         If constructor IsNot Nothing Then
             Return constructor
         Else
-            Dim info = String.Join(",", columns.Select(Function(c) c.Name).ToArray())
-            Throw New DSqlException($"取得データに一致するコンストラクタがありません:{info}")
+            Dim info As New StringBuilder()
+            For i As Integer = 0 To columTypes.Count - 1
+                info.AppendFormat(
+                    "{0}:{1}{2}{3}",
+                    columNames(i),
+                    columTypes(i).Name,
+                    If(columAllow(i) AndAlso columTypes(i).IsValueType, "?", ""),
+                    If(i < columTypes.Count - 1, ",", "")
+                )
+            Next
+            Throw New DSqlException($"取得データに一致するコンストラクタがありません:{info.ToString()}")
         End If
     End Function
+
+    ''' <summary>DBNullを見つけたら nullに変更します。</summary>
+    ''' <param name="fields">チェック対象の配列。</param>
+    ''' <param name="allowNul">DBNullを許容している列リスト。</param>
+    Private Sub ChangeDBNull(fields As Object(), allowNul As List(Of Integer))
+        For Each i In allowNul
+            If TypeOf fields(i) Is DBNull Then
+                fields(i) = Nothing
+            End If
+        Next
+    End Sub
 
     '-----------------------------------------------------------------------------------------------------------------
     ' ExecuteRecords
@@ -308,6 +344,7 @@ Public Module ZoppaDSqlManager
                 Dim props = SetSqlParameterDefine(command, sqlParameter, varFormat, setting.ParameterChecker)
 
                 Dim constructor As ConstructorInfo = Nothing
+                Dim allowNull As New List(Of Integer)()
                 For Each prm In sqlParameter
                     ' パラメータ変数に値を設定
                     If prm IsNot Nothing Then
@@ -317,13 +354,14 @@ Public Module ZoppaDSqlManager
                     Using reader = command.ExecuteReader()
                         ' マッピングコンストラクタを設定
                         If constructor Is Nothing Then
-                            constructor = CreateConstructorInfo(Of T)(reader)
+                            constructor = CreateConstructorInfo(Of T)(reader, allowNull)
                         End If
 
                         ' 一行取得してインスタンスを生成
                         Dim fields = New Object(reader.FieldCount - 1) {}
                         Do While reader.Read()
                             If reader.GetValues(fields) >= reader.FieldCount Then
+                                ChangeDBNull(fields, allowNull)
                                 recoreds.Add(CType(constructor.Invoke(fields), T))
                             End If
                         Loop
@@ -445,7 +483,7 @@ Public Module ZoppaDSqlManager
     End Function
 
     '-----------------------------------------------------------------------------------------------------------------
-    ' ExecuteQuery(CSV)
+    ' ExecuteRecords(CSV)
     '-----------------------------------------------------------------------------------------------------------------
     ''' <summary>SQLクエリを実行し、指定の型のリストを取得します。</summary>
     ''' <typeparam name="T">戻り値の型。</typeparam>
@@ -489,6 +527,7 @@ Public Module ZoppaDSqlManager
                 command.CommandType = setting.CommandType
 
                 Dim constructor As ConstructorInfo = Nothing
+                Dim allowNull As New List(Of Integer)()
                 For Each prm In csvStream
                     ' パラメータ変数に値を設定
                     Dim i As Integer = 0
@@ -507,13 +546,14 @@ Public Module ZoppaDSqlManager
                     Using reader = command.ExecuteReader()
                         ' マッピングコンストラクタを設定
                         If constructor Is Nothing Then
-                            constructor = CreateConstructorInfo(Of T)(reader)
+                            constructor = CreateConstructorInfo(Of T)(reader, allowNull)
                         End If
 
                         ' 一行取得してインスタンスを生成
                         Dim fields = New Object(reader.FieldCount - 1) {}
                         Do While reader.Read()
                             If reader.GetValues(fields) >= reader.FieldCount Then
+                                ChangeDBNull(fields, allowNull)
                                 recoreds.Add(CType(constructor.Invoke(fields), T))
                             End If
                         Loop
@@ -771,7 +811,7 @@ Public Module ZoppaDSqlManager
     End Function
 
     '-----------------------------------------------------------------------------------------------------------------
-    ' ExecuteQuery(createrMethod, CSV)
+    ' ExecuteRecords(createrMethod, CSV)
     '-----------------------------------------------------------------------------------------------------------------
     ''' <summary>SQLクエリを実行し、指定の型のリストを取得します。</summary>
     ''' <typeparam name="T">戻り値の型。</typeparam>
@@ -902,6 +942,389 @@ Public Module ZoppaDSqlManager
                                          createrMethod As Func(Of Object(), T)) As List(Of T)
         Return ExecuteRecords(Of T)(New Settings(connect), query, Nothing, csvStream, csvParameter, createrMethod)
     End Function
+
+    '-----------------------------------------------------------------------------------------------------------------
+    ' ExecuteTable
+    '-----------------------------------------------------------------------------------------------------------------
+    ''' <summary>SQLクエリを実行し、データテーブルを取得します。</summary>
+    ''' <param name="setting">実行パラメータ設定。</param>
+    ''' <param name="query">SQLクエリ。</param>
+    ''' <param name="dynamicParameter">動的SQLパラメータ。</param>
+    ''' <param name="sqlParameter">SQLパラメータオブジェクト。</param>
+    ''' <returns>実行結果。</returns>
+    <Extension()>
+    Public Function ExecuteTable(setting As Settings,
+                                 query As String,
+                                 dynamicParameter As Object,
+                                 ParamArray sqlParameter As Object()) As DataTable
+        Try
+            LoggingInformation($"Execute SQL : {query}")
+            LoggingInformation($"Use Transaction : {setting.Transaction IsNot Nothing}")
+            LoggingInformation($"Use command type : {setting.CommandType}")
+            LoggingInformation($"Timeout seconds : {setting.TimeOutSecond}")
+            Dim varFormat = GetVariantFormat(setting.ParameterPrefix)
+
+            Dim res As New DataTable(query)
+            Using command = setting.DbConnection.CreateCommand()
+                ' タイムアウト秒を設定
+                command.CommandTimeout = setting.TimeOutSecond
+
+                ' トランザクションを設定
+                If setting.Transaction IsNot Nothing Then
+                    command.Transaction = setting.Transaction
+                End If
+
+                ' SQLクエリを設定
+                command.CommandText = ParserAnalysis.Replase(query, dynamicParameter)
+                LoggingInformation($"Answer SQL : {command.CommandText}")
+
+                ' SQLパラメータが空なら動的パラメータを展開
+                If sqlParameter.Length = 0 Then
+                    sqlParameter = New Object() {dynamicParameter}
+                End If
+
+                ' SQLコマンドタイプを設定
+                command.CommandType = setting.CommandType
+
+                ' パラメータの定義を設定
+                Dim props = SetSqlParameterDefine(command, sqlParameter, varFormat, setting.ParameterChecker)
+
+                For Each prm In sqlParameter
+                    ' パラメータ変数に値を設定
+                    If prm IsNot Nothing Then
+                        SetParameter(command, prm, props, varFormat)
+                    End If
+
+                    Using reader = command.ExecuteReader()
+                        Dim tbl = reader.GetSchemaTable()
+                        For Each r As DataRow In tbl.Rows
+                            Dim clm = New DataColumn(r("ColumnName").ToString(), CType(r("DataType"), Type))
+                            res.Columns.Add(clm)
+                        Next
+
+                        ' 一行取得して行を追加
+                        Do While reader.Read()
+                            Dim r = res.NewRow()
+                            Dim fields = New Object(reader.FieldCount - 1) {}
+                            reader.GetValues(fields)
+                            r.ItemArray = fields
+                            res.Rows.Add(r)
+                        Loop
+                    End Using
+                Next
+            End Using
+            Return res
+
+        Catch ex As Exception
+            LoggingError(ex.Message)
+            LoggingError(ex.StackTrace)
+            Throw
+        End Try
+    End Function
+
+    ''' <summary>SQLクエリを実行し、データテーブルを取得します（非同期）</summary>
+    ''' <typeparam name="T">戻り値の型。</typeparam>
+    ''' <param name="setting">実行パラメータ設定。</param>
+    ''' <param name="query">SQLクエリ。</param>
+    ''' <param name="dynamicParameter">動的SQLパラメータ。</param>
+    ''' <param name="sqlParameter">SQLパラメータオブジェクト。</param>
+    ''' <returns>実行結果。</returns>
+    <Extension()>
+    Public Async Function ExecuteTableSync(setting As Settings,
+                                           query As String,
+                                           dynamicParameter As Object,
+                                           ParamArray sqlParameter As Object()) As Task(Of DataTable)
+        Return Await Task.Run(
+            Function()
+                Return ExecuteTable(setting, query, dynamicParameter, sqlParameter)
+            End Function
+        )
+    End Function
+
+    ''' <summary>SQLクエリを実行し、データテーブルを取得します。</summary>
+    ''' <typeparam name="T">戻り値の型。</typeparam>
+    ''' <param name="connect">DBコネクション。</param>
+    ''' <param name="query">SQLクエリ。</param>
+    ''' <param name="dynamicParameter">動的SQLパラメータ。</param>
+    ''' <param name="sqlParameter">SQLパラメータオブジェクト。</param>
+    ''' <returns>実行結果。</returns>
+    <Extension()>
+    Public Function ExecuteTable(connect As IDbConnection,
+                                 query As String,
+                                 dynamicParameter As Object,
+                                 ParamArray sqlParameter As Object()) As DataTable
+        Return ExecuteTable(New Settings(connect), query, dynamicParameter, sqlParameter)
+    End Function
+
+    ''' <summary>SQLクエリを実行し、データテーブルを取得します（非同期）</summary>
+    ''' <typeparam name="T">戻り値の型。</typeparam>
+    ''' <param name="connect">DBコネクション。</param>
+    ''' <param name="query">SQLクエリ。</param>
+    ''' <param name="dynamicParameter">動的SQLパラメータ。</param>
+    ''' <param name="sqlParameter">SQLパラメータオブジェクト。</param>
+    ''' <returns>実行結果。</returns>
+    <Extension()>
+    Public Async Function ExecuteTableSync(connect As IDbConnection,
+                                           query As String,
+                                           dynamicParameter As Object,
+                                           ParamArray sqlParameter As Object()) As Task(Of DataTable)
+        Return Await Task.Run(
+            Function()
+                Return ExecuteTable(New Settings(connect), query, dynamicParameter, sqlParameter)
+            End Function
+        )
+    End Function
+
+    ''' <summary>SQLクエリを実行し、データテーブルを取得します。</summary>
+    ''' <typeparam name="T">戻り値の型。</typeparam>
+    ''' <param name="setting">実行パラメータ設定。</param>
+    ''' <param name="query">SQLクエリ。</param>
+    ''' <returns>実行結果。</returns>
+    <Extension()>
+    Public Function ExecuteTable(setting As Settings,
+                                 query As String) As DataTable
+        Return ExecuteTable(setting, query, Nothing, New Object() {})
+    End Function
+
+    ''' <summary>SQLクエリを実行し、データテーブルを取得します（非同期）</summary>
+    ''' <typeparam name="T">戻り値の型。</typeparam>
+    ''' <param name="setting">実行パラメータ設定。</param>
+    ''' <param name="query">SQLクエリ。</param>
+    ''' <returns>実行結果。</returns>
+    <Extension()>
+    Public Async Function ExecuteTableSync(setting As Settings,
+                                           query As String) As Task(Of DataTable)
+        Return Await Task.Run(
+            Function()
+                Return ExecuteTable(setting, query, Nothing, New Object() {})
+            End Function
+        )
+    End Function
+
+    ''' <summary>SQLクエリを実行し、データテーブルを取得します。</summary>
+    ''' <typeparam name="T">戻り値の型。</typeparam>
+    ''' <param name="connect">DBコネクション。</param>
+    ''' <param name="query">SQLクエリ。</param>
+    ''' <returns>実行結果。</returns>
+    <Extension()>
+    Public Function ExecuteTable(connect As IDbConnection,
+                                 query As String) As DataTable
+        Return ExecuteTable(New Settings(connect), query, Nothing, New Object() {})
+    End Function
+
+    ''' <summary>SQLクエリを実行し、データテーブルを取得します（非同期）</summary>
+    ''' <typeparam name="T">戻り値の型。</typeparam>
+    ''' <param name="connect">DBコネクション。</param>
+    ''' <param name="query">SQLクエリ。</param>
+    ''' <returns>実行結果。</returns>
+    <Extension()>
+    Public Async Function ExecuteTableSync(connect As IDbConnection,
+                                           query As String) As Task(Of DataTable)
+        Return Await Task.Run(
+            Function()
+                Return ExecuteTable(New Settings(connect), query, Nothing, New Object() {})
+            End Function
+        )
+    End Function
+
+    '-----------------------------------------------------------------------------------------------------------------
+    ' ExecuteObject
+    '-----------------------------------------------------------------------------------------------------------------
+    ''' <summary>SQLクエリを実行し、ダイナミックオブジェクトを取得します。</summary>
+    ''' <param name="setting">実行パラメータ設定。</param>
+    ''' <param name="query">SQLクエリ。</param>
+    ''' <param name="dynamicParameter">動的SQLパラメータ。</param>
+    ''' <param name="sqlParameter">SQLパラメータオブジェクト。</param>
+    ''' <returns>実行結果。</returns>
+    <Extension()>
+    Public Function ExecuteObject(setting As Settings,
+                                 query As String,
+                                 dynamicParameter As Object,
+                                 ParamArray sqlParameter As Object()) As List(Of DynamicObject)
+        Try
+            LoggingInformation($"Execute SQL : {query}")
+            LoggingInformation($"Use Transaction : {setting.Transaction IsNot Nothing}")
+            LoggingInformation($"Use command type : {setting.CommandType}")
+            LoggingInformation($"Timeout seconds : {setting.TimeOutSecond}")
+            Dim varFormat = GetVariantFormat(setting.ParameterPrefix)
+
+            Dim res As New List(Of DynamicObject)()
+            Using command = setting.DbConnection.CreateCommand()
+                ' タイムアウト秒を設定
+                command.CommandTimeout = setting.TimeOutSecond
+
+                ' トランザクションを設定
+                If setting.Transaction IsNot Nothing Then
+                    command.Transaction = setting.Transaction
+                End If
+
+                ' SQLクエリを設定
+                command.CommandText = ParserAnalysis.Replase(query, dynamicParameter)
+                LoggingInformation($"Answer SQL : {command.CommandText}")
+
+                ' SQLパラメータが空なら動的パラメータを展開
+                If sqlParameter.Length = 0 Then
+                    sqlParameter = New Object() {dynamicParameter}
+                End If
+
+                ' SQLコマンドタイプを設定
+                command.CommandType = setting.CommandType
+
+                ' パラメータの定義を設定
+                Dim props = SetSqlParameterDefine(command, sqlParameter, varFormat, setting.ParameterChecker)
+
+                For Each prm In sqlParameter
+                    ' パラメータ変数に値を設定
+                    If prm IsNot Nothing Then
+                        SetParameter(command, prm, props, varFormat)
+                    End If
+
+                    Using reader = command.ExecuteReader()
+                        Dim tbl = reader.GetSchemaTable()
+                        Dim clms As New List(Of String)()
+                        For Each r As DataRow In tbl.Rows
+                            clms.Add(r("ColumnName").ToString())
+                        Next
+
+                        ' 一行取得して行を追加
+                        Dim fields = New Object(reader.FieldCount - 1) {}
+                        Do While reader.Read()
+                            reader.GetValues(fields)
+                            res.Add(New DynamicRecord(clms, fields))
+                        Loop
+                    End Using
+                Next
+            End Using
+            Return res
+
+        Catch ex As Exception
+            LoggingError(ex.Message)
+            LoggingError(ex.StackTrace)
+            Throw
+        End Try
+    End Function
+
+    ''' <summary>SQLクエリを実行し、ダイナミックオブジェクトを取得します（非同期）</summary>
+    ''' <typeparam name="T">戻り値の型。</typeparam>
+    ''' <param name="setting">実行パラメータ設定。</param>
+    ''' <param name="query">SQLクエリ。</param>
+    ''' <param name="dynamicParameter">動的SQLパラメータ。</param>
+    ''' <param name="sqlParameter">SQLパラメータオブジェクト。</param>
+    ''' <returns>実行結果。</returns>
+    <Extension()>
+    Public Async Function ExecuteObjectSync(setting As Settings,
+                                            query As String,
+                                            dynamicParameter As Object,
+                                            ParamArray sqlParameter As Object()) As Task(Of List(Of DynamicObject))
+        Return Await Task.Run(
+            Function()
+                Return ExecuteObject(setting, query, dynamicParameter, sqlParameter)
+            End Function
+        )
+    End Function
+
+    ''' <summary>SQLクエリを実行し、ダイナミックオブジェクトを取得します。</summary>
+    ''' <typeparam name="T">戻り値の型。</typeparam>
+    ''' <param name="connect">DBコネクション。</param>
+    ''' <param name="query">SQLクエリ。</param>
+    ''' <param name="dynamicParameter">動的SQLパラメータ。</param>
+    ''' <param name="sqlParameter">SQLパラメータオブジェクト。</param>
+    ''' <returns>実行結果。</returns>
+    <Extension()>
+    Public Function ExecuteObject(connect As IDbConnection,
+                                  query As String,
+                                  dynamicParameter As Object,
+                                  ParamArray sqlParameter As Object()) As List(Of DynamicObject)
+        Return ExecuteObject(New Settings(connect), query, dynamicParameter, sqlParameter)
+    End Function
+
+    ''' <summary>SQLクエリを実行し、ダイナミックオブジェクトを取得します（非同期）</summary>
+    ''' <typeparam name="T">戻り値の型。</typeparam>
+    ''' <param name="connect">DBコネクション。</param>
+    ''' <param name="query">SQLクエリ。</param>
+    ''' <param name="dynamicParameter">動的SQLパラメータ。</param>
+    ''' <param name="sqlParameter">SQLパラメータオブジェクト。</param>
+    ''' <returns>実行結果。</returns>
+    <Extension()>
+    Public Async Function ExecuteObjectSync(connect As IDbConnection,
+                                            query As String,
+                                            dynamicParameter As Object,
+                                            ParamArray sqlParameter As Object()) As Task(Of List(Of DynamicObject))
+        Return Await Task.Run(
+            Function()
+                Return ExecuteObject(New Settings(connect), query, dynamicParameter, sqlParameter)
+            End Function
+        )
+    End Function
+
+    ''' <summary>SQLクエリを実行し、ダイナミックオブジェクトを取得します。</summary>
+    ''' <typeparam name="T">戻り値の型。</typeparam>
+    ''' <param name="setting">実行パラメータ設定。</param>
+    ''' <param name="query">SQLクエリ。</param>
+    ''' <returns>実行結果。</returns>
+    <Extension()>
+    Public Function ExecuteObject(setting As Settings,
+                                  query As String) As List(Of DynamicObject)
+        Return ExecuteObject(setting, query, Nothing, New Object() {})
+    End Function
+
+    ''' <summary>SQLクエリを実行し、ダイナミックオブジェクトを取得します（非同期）</summary>
+    ''' <typeparam name="T">戻り値の型。</typeparam>
+    ''' <param name="setting">実行パラメータ設定。</param>
+    ''' <param name="query">SQLクエリ。</param>
+    ''' <returns>実行結果。</returns>
+    <Extension()>
+    Public Async Function ExecuteObjectSync(setting As Settings,
+                                            query As String) As Task(Of List(Of DynamicObject))
+        Return Await Task.Run(
+            Function()
+                Return ExecuteObject(setting, query, Nothing, New Object() {})
+            End Function
+        )
+    End Function
+
+    ''' <summary>SQLクエリを実行し、ダイナミックオブジェクトを取得します。</summary>
+    ''' <typeparam name="T">戻り値の型。</typeparam>
+    ''' <param name="connect">DBコネクション。</param>
+    ''' <param name="query">SQLクエリ。</param>
+    ''' <returns>実行結果。</returns>
+    <Extension()>
+    Public Function ExecuteObject(connect As IDbConnection,
+                                  query As String) As List(Of DynamicObject)
+        Return ExecuteObject(New Settings(connect), query, Nothing, New Object() {})
+    End Function
+
+    ''' <summary>SQLクエリを実行し、ダイナミックオブジェクトを取得します（非同期）</summary>
+    ''' <typeparam name="T">戻り値の型。</typeparam>
+    ''' <param name="connect">DBコネクション。</param>
+    ''' <param name="query">SQLクエリ。</param>
+    ''' <returns>実行結果。</returns>
+    <Extension()>
+    Public Async Function ExecuteObjectSync(connect As IDbConnection,
+                                            query As String) As Task(Of List(Of DynamicObject))
+        Return Await Task.Run(
+            Function()
+                Return ExecuteObject(New Settings(connect), query, Nothing, New Object() {})
+            End Function
+        )
+    End Function
+
+    Private Class DynamicRecord
+        Inherits DynamicObject
+
+        Private ReadOnly mData As New Dictionary(Of String, Object)()
+
+        Public Sub New(clms As List(Of String), fields As Object())
+            For i As Integer = 0 To clms.Count - 1
+                Me.mData.Add(clms(i).ToLower(), fields(i))
+            Next
+        End Sub
+
+        Public Overrides Function TryGetMember(binder As GetMemberBinder, ByRef result As Object) As Boolean
+            Return Me.mData.TryGetValue(binder.Name.ToLower(), result)
+        End Function
+
+    End Class
 
     '-----------------------------------------------------------------------------------------------------------------
     ' ExecuteQuery

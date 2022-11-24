@@ -33,6 +33,10 @@ Namespace ZoppaDSqlTest
 
         End Class
 
+        Public Sub New()
+            Encoding.RegisterProvider(CodePagesEncodingProvider.Instance)
+        End Sub
+
         <Fact>
         Public Sub ReadTest()
             Dim ans1 As New List(Of Sample1Csv)()

@@ -490,8 +490,8 @@ Namespace Analysis
         End Function
 
         ''' <summary>トークンの情報リストを作成します。</summary>
-        ''' <param name="ps"></param>
-        ''' <returns></returns>
+        ''' <param name="ps">評価部分。</param>
+        ''' <returns>トークンの情報リスト。</returns>
         Private Function CreateTokenTypes(ps As EvaParts) As List(Of (str As String, keywd As Boolean, space As Boolean))
             Dim tokens As New List(Of (str As String, keywd As Boolean, space As Boolean))()
 

@@ -1,8 +1,12 @@
 ﻿Option Strict On
 Option Explicit On
+
 Imports System.Diagnostics.Tracing
 Imports System.Text
 
+''' <summary>
+''' 
+''' </summary>
 Public NotInheritable Class UniqueKey
     Implements IComparable(Of UniqueKey)
 
