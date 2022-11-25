@@ -297,6 +297,8 @@ Dim ansPersons = Me.mSQLite.ExecuteRecords(Of Person)(
         ' Zodiacとキーを保持し、Personsプロパティに関連を追加
         Dim zdic As Zodiac = Nothing
         Dim zdicKey = prm(2).ToString()
+        
+        ' 可変長引数を使用しているため、戻り値が第一引数になってしまいました、、、1.0.9では構造体を返すメソッドを追加します、、
         If Not ansZodiacs.TrySearchValue(zdic, zdicKey) Then
             zdic = New Zodiac(zdicKey, prm(3).ToString(), CDate(prm(4)), CDate(prm(5)))
             ansZodiacs.Regist(zdic, zdicKey)
