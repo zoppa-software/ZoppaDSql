@@ -294,7 +294,7 @@ Dim ansPersons = Me.mSQLite.ExecuteRecords(Of Person)(
         ' 一つのPersonを生成
         Dim pson = New Person(prm(0).ToString(), prm(2).ToString(), CDate(prm(1)))
 
-        ' リレーションキーでZodiacを保持し、Personsプロパティに関連を追加
+        ' Zodiacとキーを保持し、Personsプロパティに関連を追加
         Dim zdic As Zodiac = Nothing
         Dim zdicKey = prm(2).ToString()
         If Not ansZodiacs.TrySearchValue(zdic, zdicKey) Then
