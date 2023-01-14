@@ -50,17 +50,32 @@ Public Module ZoppaDSqlManager
     ''' <param name="parameter">パラメータ。</param>
     ''' <param name="varFormat">変数フォーマット。</param>
     ''' <param name="prmChecker">SQLパラメータチェック。</param>
+    ''' <param name="propNames">プロパティ名リスト。</param>
     ''' <returns>プロパティインフォ。</returns>
-    Private Function SetSqlParameterDefine(command As IDbCommand, parameter As Object(), varFormat As String, prmChecker As Action(Of IDbDataParameter)) As PropertyInfo()
-        Dim props = New PropertyInfo(-1) {}
+    Private Function SetSqlParameterDefine(command As IDbCommand,
+                                           parameter As Object(),
+                                           varFormat As String,
+                                           prmChecker As Action(Of IDbDataParameter),
+                                           propNames As String()) As PropertyInfo()
+        Dim props = New List(Of PropertyInfo)()
         Dim params = parameter.Where(Function(v) v IsNot Nothing)
         If params.Any() Then
             LoggingDebug("params class define")
 
             ' プロパティインフォを取得
-            props = params.First().GetType().GetProperties()
+            props = params.First().GetType().GetProperties().ToList()
+            If propNames?.Length > 0 Then
+                Dim dic = props.ToDictionary(Of String, PropertyInfo)(Function(v) v.Name.ToLower(), Function(v) v)
+                props.Clear()
+                For Each nm In propNames
+                    Dim p As PropertyInfo = Nothing
+                    If dic.TryGetValue(nm.ToLower(), p) Then
+                        props.Add(p)
+                    End If
+                Next
+            End If
 
-            command.Parameters.Clear()
+            Dim prms As New List(Of IDbDataParameter)()
             For Each prop In props
                 ' SQLパラメータを作成
                 Dim prm = command.CreateParameter()
@@ -75,8 +90,13 @@ Public Module ZoppaDSqlManager
                     End If
                     LoggingDebug($"・Name = {prm.ParameterName} Direction = {[Enum].GetName(GetType(ParameterDirection), prm.Direction)}")
 
-                    command.Parameters.Add(prm)
+                    prms.Add(prm)
                 End If
+            Next
+
+            command.Parameters.Clear()
+            For Each prm In prms
+                command.Parameters.Add(prm)
             Next
 
             ' パラメータのチェックをする
@@ -86,7 +106,7 @@ Public Module ZoppaDSqlManager
                 Next
             End If
         End If
-        Return props
+        Return props.ToArray()
     End Function
 
     ''' <summary>SQLパラメータに値を設定します。</summary>
@@ -341,7 +361,7 @@ Public Module ZoppaDSqlManager
                 command.CommandType = setting.CommandType
 
                 ' パラメータの定義を設定
-                Dim props = SetSqlParameterDefine(command, sqlParameter, varFormat, setting.ParameterChecker)
+                Dim props = SetSqlParameterDefine(command, sqlParameter, varFormat, setting.ParameterChecker, setting.PropertyNames)
 
                 Dim constructor As ConstructorInfo = Nothing
                 Dim allowNull As New List(Of Integer)()
@@ -663,7 +683,7 @@ Public Module ZoppaDSqlManager
                 command.CommandType = setting.CommandType
 
                 ' パラメータの定義を設定
-                Dim props = SetSqlParameterDefine(command, sqlParameter, varFormat, setting.ParameterChecker)
+                Dim props = SetSqlParameterDefine(command, sqlParameter, varFormat, setting.ParameterChecker, setting.PropertyNames)
 
                 For Each prm In sqlParameter
                     ' パラメータ変数に値を設定
@@ -987,7 +1007,7 @@ Public Module ZoppaDSqlManager
                 command.CommandType = setting.CommandType
 
                 ' パラメータの定義を設定
-                Dim props = SetSqlParameterDefine(command, sqlParameter, varFormat, setting.ParameterChecker)
+                Dim props = SetSqlParameterDefine(command, sqlParameter, varFormat, setting.ParameterChecker, setting.PropertyNames)
 
                 For Each prm In sqlParameter
                     ' パラメータ変数に値を設定
@@ -1171,7 +1191,7 @@ Public Module ZoppaDSqlManager
                 command.CommandType = setting.CommandType
 
                 ' パラメータの定義を設定
-                Dim props = SetSqlParameterDefine(command, sqlParameter, varFormat, setting.ParameterChecker)
+                Dim props = SetSqlParameterDefine(command, sqlParameter, varFormat, setting.ParameterChecker, setting.PropertyNames)
 
                 For Each prm In sqlParameter
                     ' パラメータ変数に値を設定
@@ -1370,7 +1390,7 @@ Public Module ZoppaDSqlManager
                 command.CommandType = setting.CommandType
 
                 ' パラメータの定義を設定
-                Dim props = SetSqlParameterDefine(command, sqlParameter, varFormat, setting.ParameterChecker)
+                Dim props = SetSqlParameterDefine(command, sqlParameter, varFormat, setting.ParameterChecker, setting.PropertyNames)
 
                 For Each prm In sqlParameter
                     ' パラメータ変数に値を設定

@@ -277,7 +277,17 @@ End Try
 | SetParameterPrepix | SQLパラメータの接頭辞を設定します、デフォルトは `@` です。</br>デフォルト値は `ZoppaDSqlSetting.DefaultParameterPrefix` で変更してください。 | 
 | SetCommandType | SQLのコマンドタイプを設定します、デフォルト値は `CommandType.Text` です。 |
 | SetParameterChecker | SQLパラメータチェック式を設定します。デフォルト値は `Null` です。</br>デフォルトs式は `ZoppaDSqlSetting.DefaultSqlParameterCheck` で変更してください。 |
+| SetOrderName | 指定したプロパティ名の順番でSQLパラメータを作成します。 |
   
+位置指定パラメータ`?`では名前がないので`SetOrderName`で設定するプロパティの名前を順に設定します。以下は例です、  
+``` vb
+Dim answer = Await Me.mSQLite.
+    SetOrderName("Name").
+    ExecuteTableSync(
+        "select * from Person where name = ?",
+        New With {.Name = "阿部 サダヲ"}
+    )
+```
 ### インスタンス生成をカスタマイズします
 検索結果が 多対1 など一つのインスタンスで表現できない場合、インスタンスの生成をカスタマイズする必要があります。  
 ZoppaDSqlではインスタンスを生成する式を引数で与えることで対応します。  
@@ -294,16 +304,19 @@ Dim ansPersons = Me.mSQLite.ExecuteRecords(Of Person)(
         ' 一つのPersonを生成
         Dim pson = New Person(prm(0).ToString(), prm(2).ToString(), CDate(prm(1)))
 
-        ' Zodiacとキーを保持し、Personsプロパティに関連を追加
-        Dim zdic As Zodiac = Nothing
+        ' Zodiacのキーを取得
         Dim zdicKey = prm(2).ToString()
-        
-        ' 可変長引数を使用しているため、戻り値が第一引数になってしまいました、、、1.0.9では構造体を返すメソッドを追加します、、
-        If Not ansZodiacs.TrySearchValue(zdic, zdicKey) Then
-            zdic = New Zodiac(zdicKey, prm(3).ToString(), CDate(prm(4)), CDate(prm(5)))
+
+        ' Zodiacが登録済みならば、登録済みのZodiacにPersonsプロパティに関連を追加
+        ' 登録済みでなければ新しいZodiacを生成し、Personを関連つけて登録
+        Dim registed = ansZodiacs.SearchValue(zdicKey)
+        If registed.hasValue Then
+            registed.value.Persons.Add(pson)
+        Else
+            Dim zdic = New Zodiac(zdicKey, prm(3).ToString(), CDate(prm(4)), CDate(prm(5)))
+            zdic.Persons.Add(pson)
             ansZodiacs.Regist(zdic, zdicKey)
         End If
-        zdic.Persons.Add(pson)
 
         Return pson
     End Function

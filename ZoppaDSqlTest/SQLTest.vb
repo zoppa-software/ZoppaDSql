@@ -167,14 +167,16 @@ PRIMARY KEY(name)
                 "  Person.zodiac = Zodiac.name",
                 Function(prm As Object()) As Person
                     Dim pson = New Person(prm(0).ToString(), prm(2).ToString(), CDate(prm(1)))
-
-                    Dim zdic As Zodiac = Nothing
                     Dim zdicKey = prm(2).ToString()
-                    If Not ansZodiacs.TrySearchValue(zdic, zdicKey) Then
-                        zdic = New Zodiac(zdicKey, prm(3).ToString(), CDate(prm(4)), CDate(prm(5)))
+
+                    Dim registed = ansZodiacs.SearchValue(zdicKey)
+                    If registed.hasValue Then
+                        registed.value.Persons.Add(pson)
+                    Else
+                        Dim zdic = New Zodiac(zdicKey, prm(3).ToString(), CDate(prm(4)), CDate(prm(5)))
+                        zdic.Persons.Add(pson)
                         ansZodiacs.Regist(zdic, zdicKey)
                     End If
-                    zdic.Persons.Add(pson)
 
                     Return pson
                 End Function
@@ -242,6 +244,14 @@ PRIMARY KEY(name)
                 )
 
             Assert.Equal(tbl.Rows.Count, 3)
+
+            Dim tbl2 = Await Me.mSQLite.
+                SetOrderName("Name").
+                ExecuteTableSync(
+                    "select * from Person where name = ?",
+                    New With {.Name = "阿部 サダヲ"}
+                )
+            Assert.Equal(tbl2.Rows.Count, 1)
 
             Dim tran3 = Me.mSQLite.BeginTransaction()
             Try

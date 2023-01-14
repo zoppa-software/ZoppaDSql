@@ -1,22 +1,24 @@
 ﻿Option Strict On
 Option Explicit On
 
-Imports System.Diagnostics.Tracing
 Imports System.Text
 
-''' <summary>
-''' 
-''' </summary>
+''' <summary>ユニークキーを表現するクラスです。</summary>
 Public NotInheritable Class UniqueKey
     Implements IComparable(Of UniqueKey)
 
+    ' キーリスト
     Private mKeys() As IComparable
 
+    ''' <summary>コンストラクタ。</summary>
+    ''' <param name="keys">キーリスト。</param>
     Private Sub New(keys As List(Of IComparable))
         Me.mKeys = keys.ToArray()
     End Sub
 
-
+    ''' <summary>ユニークキーを作成します。</summary>
+    ''' <param name="keys">キーリスト。</param>
+    ''' <returns>ユニークキー。</returns>
     Public Shared Function Create(ParamArray keys As Object()) As UniqueKey
         Dim rkeys As New List(Of IComparable)()
         For Each k In keys
@@ -34,6 +36,9 @@ Public NotInheritable Class UniqueKey
         End If
     End Function
 
+    ''' <summary>等しいか判定します。</summary>
+    ''' <param name="obj">比較対象。</param>
+    ''' <returns>等しければ真。</returns>
     Public Overrides Function Equals(obj As Object) As Boolean
         Dim other = TryCast(obj, UniqueKey)
         If other IsNot Nothing AndAlso
@@ -44,6 +49,9 @@ Public NotInheritable Class UniqueKey
         End If
     End Function
 
+    ''' <summary>ユニークキーを比較します。</summary>
+    ''' <param name="other">比較対象。</param>
+    ''' <returns>比較結果。</returns>
     Public Function CompareTo(other As UniqueKey) As Integer Implements IComparable(Of UniqueKey).CompareTo
         For i As Integer = 0 To Math.Max(Me.mKeys.Length, other.mKeys.Length) - 1
             Dim lv = If(i < Me.mKeys.Length, Me.mKeys(i), Nothing)
@@ -63,7 +71,8 @@ Public NotInheritable Class UniqueKey
         Return 0
     End Function
 
-
+    ''' <summary>ハッシュ値を取得します。</summary>
+    ''' <returns>ハッシュ値。</returns>
     Public Overrides Function GetHashCode() As Integer
         Dim res As Integer = If(Me.mKeys(0)?.GetHashCode(), 0)
         For i As Integer = 1 To Me.mKeys.Length - 1
@@ -72,6 +81,8 @@ Public NotInheritable Class UniqueKey
         Return res
     End Function
 
+    ''' <summary>文字列表現を取得します。</summary>
+    ''' <returns>文字列表現。</returns>
     Public Overrides Function ToString() As String
         Dim buf As New StringBuilder()
         For Each o In Me.mKeys
