@@ -71,6 +71,16 @@ PRIMARY KEY(name)
             )
             Assert.Equal(zodiacs, ansZodiacs.ToArray())
 
+            Dim ansCount = Me.mSQLite.ExecuteDatas(Of Long)(
+                "select count(*) from Zodiac"
+            )
+            Assert.Equal(12, ansCount.First())
+
+            Dim ansObjects = Me.mSQLite.ExecuteArrays(
+                "select name, jp_name, from_date, to_date from Zodiac"
+            )
+            Assert.Equal(12, ansObjects.Count)
+
             Dim selZodiacs = Me.mSQLite.ExecuteRecords(Of Zodiac)(
                 "select name, jp_name, from_date, to_date from Zodiac where jp_name = @jname",
                 New With {.jname = CType("双子座", DbString)}

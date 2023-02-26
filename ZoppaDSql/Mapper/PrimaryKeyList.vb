@@ -134,7 +134,7 @@ Public Class PrimaryKeyList(Of T)
     End Function
 
     ''' <summary>指定したユニークキーを削除します。</summary>
-    ''' <param name="item">ユニークキー。/param>
+    ''' <param name="item">ユニークキー。</param>
     ''' <returns>削除できたら真。</returns>
     Public Function Remove(item As T) As Boolean
         Dim key As UniqueKey = Nothing
