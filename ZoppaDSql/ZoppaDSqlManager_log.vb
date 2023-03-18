@@ -3,6 +3,7 @@ Option Explicit On
 
 Imports System.IO
 Imports System.IO.Compression
+Imports System.Threading
 
 ''' <summary>DSql APIモジュール。</summary>
 Partial Module ZoppaDSqlManager
@@ -83,7 +84,7 @@ Partial Module ZoppaDSqlManager
     End Enum
 
     ''' <summary>ログデータ。</summary>
-    Private Structure LogData
+    Public Structure LogData
 
         ''' <summary>書き込み日時。</summary>
         Public ReadOnly WriteTime As Date
@@ -120,7 +121,7 @@ Partial Module ZoppaDSqlManager
     End Structure
 
     ''' <summary>ログ出力機能。</summary>
-    Private NotInheritable Class Logger
+    Public NotInheritable Class Logger
         Implements ILogWriter
 
         ' 対象ファイル
@@ -150,6 +151,9 @@ Partial Module ZoppaDSqlManager
         ' 書込み中フラグ
         Private mWriting As Boolean
 
+        ' 書き込み禁止MUTEX
+        Private mWriteMutex As New Mutex()
+
         ''' <summary>ログ設定を行う。</summary>
         ''' <param name="logFilePath">出力ファイル名。</param>
         ''' <param name="encode">出力エンコード。</param>
@@ -176,18 +180,25 @@ Partial Module ZoppaDSqlManager
         ''' <summary>ログをファイルに出力します。</summary>
         ''' <param name="message">出力するログ。</param>
         Public Sub Write(message As LogData)
-            ' 書き出す情報をため込む
-            Dim wrt As Boolean
-            SyncLock Me
-                Me.mQueue.Enqueue(message)
-                wrt = Me.mWriting
-            End SyncLock
+            Try
+                Me.mWriteMutex.WaitOne()
 
-            ' 別スレッドでファイルに出力
-            If Not wrt Then
-                Me.mWriting = True
-                Task.Run(Sub() Me.Write())
-            End If
+                ' 書き出す情報をため込む
+                Dim wrt As Boolean
+                SyncLock Me
+                    Me.mQueue.Enqueue(message)
+                    wrt = Me.mWriting
+                End SyncLock
+
+                ' 別スレッドでファイルに出力
+                If Not wrt Then
+                    Me.mWriting = True
+                    Task.Run(Sub() Me.Write())
+                End If
+            Catch ex As Exception
+            Finally
+                Me.mWriteMutex.ReleaseMutex()
+            End Try
         End Sub
 
         ''' <summary>ログをファイルに出力する。</summary>
@@ -197,15 +208,20 @@ Partial Module ZoppaDSqlManager
             If Me.mLogFile.Exists AndAlso
                (Me.mLogFile.Length > Me.mMaxLogSize OrElse Me.ChangeOfDate) Then
                 Try
+                    Me.mWriteMutex.WaitOne()
+
                     ' 以前のファイルをリネーム
                     Dim ext = Path.GetExtension(Me.mLogFile.Name)
                     Dim nm = Me.mLogFile.Name.Substring(0, Me.mLogFile.Name.Length - ext.Length)
                     Dim tn = Date.Now.ToString("yyyyMMddHHmmssfff")
 
-                    File.Move(Me.mLogFile.FullName, $"{mLogFile.Directory.FullName}\{nm}_{tn}\{nm}{ext}")
+                    Dim zipPath = New IO.FileInfo($"{mLogFile.Directory.FullName}\{nm}_{tn}\{nm}{ext}")
+                    If Not zipPath.Exists Then
+                        zipPath.Directory.Create()
+                    End If
+                    File.Move(Me.mLogFile.FullName, zipPath.FullName)
                     ZipFile.CreateFromDirectory(
-                        $"{mLogFile.Directory.FullName}\{nm}_{tn}",
-                        $"{mLogFile.Directory.FullName}\{nm}_{tn}.zip"
+                        zipPath.Directory.FullName, $"{zipPath.Directory.FullName}.zip"
                     )
                     Directory.Delete($"{mLogFile.Directory.FullName}\{nm}_{tn}", True)
 
@@ -221,6 +237,8 @@ Partial Module ZoppaDSqlManager
                         Me.mWriting = False
                     End SyncLock
                     Return
+                Finally
+                    Me.mWriteMutex.ReleaseMutex()
                 End Try
             End If
 
@@ -244,9 +262,19 @@ Partial Module ZoppaDSqlManager
                             sw.WriteLine(ln)
                             writed = True
                         End If
+
+                        Me.mLogFile.Refresh()
+                        If Me.mLogFile.Length > Me.mMaxLogSize OrElse Me.ChangeOfDate Then
+                            SyncLock Me
+                                Me.mWriting = False
+                            End SyncLock
+                            Return
+                        End If
                     Loop While writed
                 End Using
-                Threading.Thread.Sleep(100)
+
+                Threading.Thread.Sleep(10)
+
             Catch ex As Exception
                 SyncLock Me
                     Me.mWriting = False
@@ -280,8 +308,9 @@ Partial Module ZoppaDSqlManager
 
         ''' <summary>ログ出力終了を待機します。</summary>
         Public Sub WaitFinish() Implements ILogWriter.WaitFinish
-            For i As Integer = 0 To 99 ' 事情があって書き込めないとき無限ループするためループ回数制限する
+            For i As Integer = 0 To 5 * 60  ' 事情があって書き込めないとき無限ループするためループ回数制限する
                 If Me.IsWriting Then
+                    Me.FlushWrite()
                     Threading.Thread.Sleep(1000)
                 Else
                     Exit For
@@ -289,12 +318,31 @@ Partial Module ZoppaDSqlManager
             Next
         End Sub
 
+        ''' <summary>出力スレッドが停止中ならば実行します。</summary>
+        Private Sub FlushWrite()
+            Try
+                ' 書き込み中か判定
+                Dim wrt As Boolean
+                SyncLock Me
+                    wrt = Me.mWriting
+                End SyncLock
+
+                ' 別スレッドでファイルに出力
+                If Not wrt Then
+                    Me.mWriting = True
+                    Task.Run(Sub() Me.Write())
+                End If
+            Catch ex As Exception
+
+            End Try
+        End Sub
+
         ''' <summary>書き込み中状態を取得します。</summary>
         ''' <returns>書き込み中状態。</returns>
         Public ReadOnly Property IsWriting() As Boolean
             Get
                 SyncLock Me
-                    Return Me.mWriting
+                    Return (Me.mQueue.Count > 0)
                 End SyncLock
             End Get
         End Property

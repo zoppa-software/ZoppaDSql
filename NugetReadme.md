@@ -68,6 +68,7 @@ End Class
 以上、簡単な説明となります。**ライブラリの詳細は[Githubのページ](https://github.com/zoppa-software/ZoppaDSql)を参照してください。**
 
 ## 更新について
+* 1.1.1 大量ログ出力に対応するためログ出力機能を修正
 * 1.1.0 `Select`クエリの結果を`Object`配列リストで返す`ExecuteArrays`メソッドを追加  
         一列の結果を指定の型で取得する`ExecuteDatas`を追加
 * 1.0.9 PrimaryKeyListにSearchValueを追加して、インスタンスの関連付け処理コードを読みやすく修正  
