@@ -219,11 +219,15 @@ Partial Module ZoppaDSqlManager
                     If Not zipPath.Exists Then
                         zipPath.Directory.Create()
                     End If
-                    File.Move(Me.mLogFile.FullName, zipPath.FullName)
-                    ZipFile.CreateFromDirectory(
-                        zipPath.Directory.FullName, $"{zipPath.Directory.FullName}.zip"
-                    )
-                    Directory.Delete($"{mLogFile.Directory.FullName}\{nm}_{tn}", True)
+                    Try
+                        File.Move(Me.mLogFile.FullName, zipPath.FullName)
+                        ZipFile.CreateFromDirectory(
+                            zipPath.Directory.FullName, $"{zipPath.Directory.FullName}.zip"
+                        )
+                    Catch ex As Exception
+                    Finally
+                        Directory.Delete($"{mLogFile.Directory.FullName}\{nm}_{tn}", True)
+                    End Try
 
                     ' 過去ファイルを整理
                     Dim oldfiles = Directory.GetFiles(Me.mLogFile.Directory.FullName, $"{nm}*.zip").ToList()
