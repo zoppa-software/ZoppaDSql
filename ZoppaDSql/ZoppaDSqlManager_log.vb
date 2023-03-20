@@ -229,10 +229,25 @@ Partial Module ZoppaDSqlManager
                         zipPath.Directory.Create()
                     End If
                     Try
-                        File.Move(Me.mLogFile.FullName, zipPath.FullName)
-                        ZipFile.CreateFromDirectory(
-                            zipPath.Directory.FullName, $"{zipPath.Directory.FullName}.zip"
-                        )
+                        Dim moved = False
+                        Dim exx As Exception = Nothing
+                        For i As Integer = 0 To 4
+                            Try
+                                File.Move(Me.mLogFile.FullName, zipPath.FullName)
+                                moved = True
+                                Exit For
+                            Catch ex As Exception
+                                exx = ex
+                                Thread.Sleep(100)
+                            End Try
+                        Next
+                        If moved Then
+                            ZipFile.CreateFromDirectory(
+                                zipPath.Directory.FullName, $"{zipPath.Directory.FullName}.zip"
+                            )
+                        Else
+                            Throw exx
+                        End If
                     Catch ex As Exception
                         Throw
                     Finally
