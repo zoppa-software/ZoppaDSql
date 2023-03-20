@@ -45,17 +45,19 @@ Partial Module ZoppaDSqlManager
     ''' <param name="logGeneration">ログ世代数。</param>
     ''' <param name="logLevel">ログレベル。</param>
     ''' <param name="dateChange">日付の変更でログを切り替えるかの設定。</param>
+    ''' <param name="cacheLimit">ログキャッシュに保持する最大行数。</param>
     Public Sub UseDefaultLogger(Optional logFilePath As String = "zoppa_dsql.txt",
                                 Optional encode As Text.Encoding = Nothing,
                                 Optional maxLogSize As Integer = 30 * 1024 * 1024,
                                 Optional logGeneration As Integer = 10,
                                 Optional logLevel As LogLevel = LogLevel.DebugLevel,
-                                Optional dateChange As Boolean = False)
+                                Optional dateChange As Boolean = False,
+                                Optional cacheLimit As Integer = 1000)
         Dim fi As New FileInfo(logFilePath)
         If Not fi.Directory.Exists Then
             fi.Directory.Create()
         End If
-        mLogger = New Logger(logFilePath, If(encode, Text.Encoding.Default), maxLogSize, logGeneration, logLevel, dateChange)
+        mLogger = New Logger(logFilePath, If(encode, Text.Encoding.Default), maxLogSize, logGeneration, logLevel, dateChange, cacheLimit)
     End Sub
 
     ''' <summary>カスタムログを設定します。</summary>
@@ -142,6 +144,9 @@ Partial Module ZoppaDSqlManager
         ' 日付が変わったら切り替えるかのフラグ
         Private ReadOnly mDateChange As Boolean
 
+        ' キャッシュに保存するログ行数のリミット
+        Private ReadOnly mCacheLimit As Integer
+
         ' 書込みバッファ
         Private mQueue As New Queue(Of LogData)()
 
@@ -150,9 +155,6 @@ Partial Module ZoppaDSqlManager
 
         ' 書込み中フラグ
         Private mWriting As Boolean
-
-        ' 書き込み禁止MUTEX
-        Private mWriteMutex As New Mutex()
 
         ''' <summary>ログ設定を行う。</summary>
         ''' <param name="logFilePath">出力ファイル名。</param>
@@ -166,7 +168,8 @@ Partial Module ZoppaDSqlManager
                        maxLogSize As Integer,
                        logGeneration As Integer,
                        logLevel As LogLevel,
-                       dateChange As Boolean)
+                       dateChange As Boolean,
+                       cacheLimit As Integer)
             Me.mLogFile = New FileInfo(logFilePath)
             Me.mEncode = encode
             Me.mMaxLogSize = maxLogSize
@@ -175,30 +178,38 @@ Partial Module ZoppaDSqlManager
             Me.mLogLevel = logLevel
             Me.mDateChange = dateChange
             Me.mPrevWriteDate = Date.MaxValue
+            Me.mCacheLimit = cacheLimit
         End Sub
 
         ''' <summary>ログをファイルに出力します。</summary>
         ''' <param name="message">出力するログ。</param>
         Public Sub Write(message As LogData)
-            Try
-                Me.mWriteMutex.WaitOne()
+            ' 書き出す情報をため込む
+            Dim wrt As Boolean
+            Dim cnt As Integer
+            SyncLock Me
+                Me.mQueue.Enqueue(message)
+                wrt = Me.mWriting
+                cnt = Me.mQueue.Count
+            End SyncLock
 
-                ' 書き出す情報をため込む
-                Dim wrt As Boolean
-                SyncLock Me
-                    Me.mQueue.Enqueue(message)
-                    wrt = Me.mWriting
-                End SyncLock
+            ' キューにログが溜まっていたら少々待機
+            Dim cacheLmt As Integer = Me.mCacheLimit
+            If cnt > cacheLmt Then
+                For i As Integer = 0 To 99
+                    Thread.Sleep(100)
+                    SyncLock Me
+                        cnt = Me.mQueue.Count
+                    End SyncLock
+                    If cnt < cacheLmt Then Exit For
+                Next
+            End If
 
-                ' 別スレッドでファイルに出力
-                If Not wrt Then
-                    Me.mWriting = True
-                    Task.Run(Sub() Me.Write())
-                End If
-            Catch ex As Exception
-            Finally
-                Me.mWriteMutex.ReleaseMutex()
-            End Try
+            ' 別スレッドでファイルに出力
+            If Not wrt Then
+                Me.mWriting = True
+                Task.Run(Sub() Me.Write())
+            End If
         End Sub
 
         ''' <summary>ログをファイルに出力する。</summary>
@@ -208,8 +219,6 @@ Partial Module ZoppaDSqlManager
             If Me.mLogFile.Exists AndAlso
                (Me.mLogFile.Length > Me.mMaxLogSize OrElse Me.ChangeOfDate) Then
                 Try
-                    Me.mWriteMutex.WaitOne()
-
                     ' 以前のファイルをリネーム
                     Dim ext = Path.GetExtension(Me.mLogFile.Name)
                     Dim nm = Me.mLogFile.Name.Substring(0, Me.mLogFile.Name.Length - ext.Length)
@@ -225,6 +234,7 @@ Partial Module ZoppaDSqlManager
                             zipPath.Directory.FullName, $"{zipPath.Directory.FullName}.zip"
                         )
                     Catch ex As Exception
+                        Throw
                     Finally
                         Directory.Delete($"{mLogFile.Directory.FullName}\{nm}_{tn}", True)
                     End Try
@@ -241,8 +251,6 @@ Partial Module ZoppaDSqlManager
                         Me.mWriting = False
                     End SyncLock
                     Return
-                Finally
-                    Me.mWriteMutex.ReleaseMutex()
                 End Try
             End If
 
