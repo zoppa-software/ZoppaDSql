@@ -57,7 +57,8 @@ Partial Module ZoppaDSqlManager
         If Not fi.Directory.Exists Then
             fi.Directory.Create()
         End If
-        mLogger = New Logger(logFilePath, If(encode, Text.Encoding.Default), maxLogSize, logGeneration, logLevel, dateChange, cacheLimit)
+        mLogger = New Logger(logFilePath, If(encode, Text.Encoding.Default),
+                             maxLogSize, logGeneration, logLevel, dateChange, cacheLimit)
     End Sub
 
     ''' <summary>カスタムログを設定します。</summary>
@@ -113,7 +114,7 @@ Partial Module ZoppaDSqlManager
             Dim lv = "ERROR"
             Select Case Me.LogLevel
                 Case LogLevel.InfomationLevel
-                    lv = "INFO"
+                    lv = "INFO "
                 Case LogLevel.DebugLevel
                     lv = "DEBUG"
             End Select
@@ -141,11 +142,11 @@ Partial Module ZoppaDSqlManager
         ' ログ出力レベル
         Private ReadOnly mLogLevel As LogLevel
 
-        ' 日付が変わったら切り替えるかのフラグ
-        Private ReadOnly mDateChange As Boolean
-
         ' キャッシュに保存するログ行数のリミット
         Private ReadOnly mCacheLimit As Integer
+
+        ' 日付が変わったら切り替えるかのフラグ
+        Private ReadOnly mDateChange As Boolean
 
         ' 書込みバッファ
         Private mQueue As New Queue(Of LogData)()
@@ -185,11 +186,9 @@ Partial Module ZoppaDSqlManager
         ''' <param name="message">出力するログ。</param>
         Public Sub Write(message As LogData)
             ' 書き出す情報をため込む
-            Dim wrt As Boolean
             Dim cnt As Integer
             SyncLock Me
                 Me.mQueue.Enqueue(message)
-                wrt = Me.mWriting
                 cnt = Me.mQueue.Count
             End SyncLock
 
@@ -206,8 +205,14 @@ Partial Module ZoppaDSqlManager
             End If
 
             ' 別スレッドでファイルに出力
-            If Not wrt Then
-                Me.mWriting = True
+            Dim running As Boolean = False
+            SyncLock Me
+                If Not Me.mWriting Then
+                    Me.mWriting = True
+                    running = True
+                End If
+            End SyncLock
+            If running Then
                 Task.Run(Sub() Me.Write())
             End If
         End Sub
@@ -348,17 +353,18 @@ Partial Module ZoppaDSqlManager
         ''' <summary>出力スレッドが停止中ならば実行します。</summary>
         Private Sub FlushWrite()
             Try
-                ' 書き込み中か判定
-                Dim wrt As Boolean
+                ' 出力スレッドが停止中ならばスレッド開始
+                Dim running = False
                 SyncLock Me
-                    wrt = Me.mWriting
+                    If Not Me.mWriting Then
+                        Me.mWriting = True
+                        running = True
+                    End If
                 End SyncLock
-
-                ' 別スレッドでファイルに出力
-                If Not wrt Then
-                    Me.mWriting = True
+                If running Then
                     Task.Run(Sub() Me.Write())
                 End If
+
             Catch ex As Exception
 
             End Try
