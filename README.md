@@ -74,7 +74,7 @@ SQL文を部分的に除外、または繰り返すなど制御を行います�
 以下の例を参照してください。  
 ``` vb
 Dim query = "" &
-"select * from table1
+select * from table1
 where
   {if num = 1}col1 = #{num}
   {else if num = 2}col2 = #{num}
