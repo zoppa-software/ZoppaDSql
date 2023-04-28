@@ -39,7 +39,7 @@ Namespace Analysis
             Using sr As New StringReader(buffer.ToString())
                 Do While sr.Peek() <> -1
                     Dim ln = sr.ReadLine()
-                    If ln.Trim() <> "" Then ans.AppendLine(ln)
+                    If ln.Trim() <> "" Then ans.AppendLine(ln.TrimEnd())
                 Loop
             End Using
             Return ans.ToString().Trim()
@@ -597,12 +597,12 @@ Namespace Analysis
         ''' <returns>表示があるならば真。</returns>
         Private Function FactorTrim(parts As EvaPartsPointer) As Boolean
             Dim facts As New List(Of EvaParts)()
-            Dim isOut As Boolean = True
+            Dim isOut As Boolean = False
 
             ' (、and、orの要素を取得するまでリストに保持
             Do While parts.HasNext
                 If parts.Current.OutString = "(" Then
-                    isOut = isOut And ParenTrim(parts)
+                    isOut = isOut Or ParenTrim(parts)
                 ElseIf parts.Current.OutString = ")" Then
                     Exit Do
                 ElseIf parts.Current.OutString.ToLower() = "and" OrElse
@@ -610,7 +610,6 @@ Namespace Analysis
                     Exit Do
                 Else
                     facts.Add(parts.Current)
-                    isOut = isOut And parts.Current.IsOutpit
                     parts.Increment()
                 End If
             Loop
@@ -639,16 +638,40 @@ Namespace Analysis
             ' (を取得
             Dim lParen = parts.Current
             parts.Increment()
+            Dim fptr = parts.Index
 
             ' and/orをトリム
             Dim isOut = LogicalTrim(parts)
 
             ' )を取得
             Dim rParen = parts.Current
+            Dim rptr = parts.Index - 1
             parts.Increment()
 
             ' 表示するなら真、表示しないならば()を非表示にして偽
             If isOut Then
+                For i As Integer = fptr To parts.Count - 1
+                    With parts(i)
+                        If .IsOutpit Then
+                            If .IsSpace Then
+                                .IsOutpit = False
+                            Else
+                                Exit For
+                            End If
+                        End If
+                    End With
+                Next
+                For i As Integer = rptr To 0 Step -1
+                    With parts(i)
+                        If .IsOutpit Then
+                            If .IsSpace Then
+                                .IsOutpit = False
+                            Else
+                                Exit For
+                            End If
+                        End If
+                    End With
+                Next
                 Return True
             Else
                 lParen.IsOutpit = False
@@ -741,6 +764,28 @@ Namespace Analysis
 
             ' インデックス
             Private mIndex As Integer = 0
+
+            ''' <summary>指定位置の評価要素を取得。</summary>
+            ''' <param name="idx">インデックス。</param>
+            Default Public ReadOnly Property Items(idx As Integer) As EvaParts
+                Get
+                    Return Me.mParts(idx)
+                End Get
+            End Property
+
+            ''' <summary>現在のカレントのインデックスを取得。</summary>
+            Public ReadOnly Property Index As Integer
+                Get
+                    Return Me.mIndex
+                End Get
+            End Property
+
+            ''' <summary>要素数を取得。</summary>
+            Public ReadOnly Property Count As Integer
+                Get
+                    Return If(Me.mParts?.Count, 0)
+                End Get
+            End Property
 
             ''' <summary>カレントの評価部分を取得します。</summary>
             ''' <returns>評価部分。</returns>

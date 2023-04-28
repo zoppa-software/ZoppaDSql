@@ -18,15 +18,14 @@ where
     ({if af}a = 1{end if} or {if bf}b = 2{end if}) and ({if cf}c = 3{end if} or {if df}d = 4{end if})
 {end trim}
 "
-            Dim ans6 = query3.Compile(New With {.af = False, .bf = False, .cf = False, .df = False})
-            Assert.Equal(ans6.Trim(), "select * from tb1")
-
             Dim ans7 = query3.Compile(New With {.af = True, .bf = False, .cf = False, .df = True})
             Assert.Equal(ans7.Trim(),
 "select * from tb1
 where
-    (a = 1 ) and ( d = 4)")
+    (a = 1) and (d = 4)")
 
+            Dim ans6 = query3.Compile(New With {.af = False, .bf = False, .cf = False, .df = False})
+            Assert.Equal(ans6.Trim(), "select * from tb1")
 
             Dim query1 = "" &
 "select * from employees 
@@ -39,21 +38,21 @@ where
 limit 10"
             Dim ans1 = query1.Compile(New With {.empNo = False, .first_name = False, .gender = False})
             Assert.Equal(ans1.Trim(),
-"select * from employees 
+"select * from employees
 limit 10")
 
             Dim ans2 = query1.Compile(New With {.empNo = True, .first_name = False, .gender = False})
             Assert.Equal(ans2.Trim(),
-"select * from employees 
+"select * from employees
 where
-    emp_no < 20000 
+    emp_no < 20000
 limit 10")
 
             Dim ans3 = query1.Compile(New With {.empNo = False, .first_name = True, .gender = False})
             Assert.Equal(ans3.Trim(),
-"select * from employees 
+"select * from employees
 where
-    (first_name like 'A%' )
+    (first_name like 'A%')
 limit 10")
 
             Dim query2 = "" &
@@ -65,18 +64,15 @@ where
 limit 10"
             Dim ans4 = query2.Compile(New With {.empNo = False})
             Assert.Equal(ans4.Trim(),
-"select * from employees 
+"select * from employees
 limit 10")
 
             Dim ans5 = query2.Compile(New With {.empNo = True})
             Assert.Equal(ans5.Trim(),
-"select * from employees 
+"select * from employees
 where
     (emp_no = sysdate())
 limit 10")
-
-
-
         End Sub
 
         <Fact>
@@ -94,7 +90,7 @@ WHERE
 "SELECT
     *
 FROM
-    customers 
+    customers
 WHERE
     FirstName in ('Helena', 'Dan', 'Aaron')")
 
@@ -111,7 +107,7 @@ WHERE
 "SELECT
     *
 FROM
-    customers 
+    customers
 WHERE
     FirstName in ('Helena', 'Dan', 'Aaron')")
         End Sub
@@ -213,6 +209,56 @@ where
     'さしすせそ',
     'たちつてと',
     'なにぬねの'")
+        End Sub
+
+        <Fact>
+        Public Sub TrimTest2()
+            Dim query = "SELECT
+{if sel}
+	T_摘要M.摘要CD,T_摘要M.摘要名
+{else}
+	count(*) as cnt
+{end if}
+FROM T_摘要M
+{trim}
+WHERE
+    {if txZyCd <> ''}T_摘要M.担当者CD like '%!{txZyCd}%'{end if} AND
+    {if txZyNm <> ''}T_摘要M.摘要名 like '%!{txZyNm}%'{end if}
+{end trim}
+{if sel}
+ORDER BY T_摘要M.摘要CD
+{end if}	
+"
+            Dim ans1 = query.Compile(New With {.sel = True, .txZyCd = "A", .txZyNm = ""})
+            Assert.Equal(ans1, "SELECT
+	T_摘要M.摘要CD,T_摘要M.摘要名
+FROM T_摘要M
+WHERE
+    T_摘要M.担当者CD like '%A%'
+ORDER BY T_摘要M.摘要CD")
+
+            Dim ans2 = query.Compile(New With {.sel = True, .txZyCd = "", .txZyNm = ""})
+            Assert.Equal(ans2, "SELECT
+	T_摘要M.摘要CD,T_摘要M.摘要名
+FROM T_摘要M
+ORDER BY T_摘要M.摘要CD")
+
+            Dim ans3 = query.Compile(New With {.sel = True, .txZyCd = "", .txZyNm = "B"})
+            Assert.Equal(ans3, "SELECT
+	T_摘要M.摘要CD,T_摘要M.摘要名
+FROM T_摘要M
+WHERE
+    T_摘要M.摘要名 like '%B%'
+ORDER BY T_摘要M.摘要CD")
+
+            Dim ans4 = query.Compile(New With {.sel = True, .txZyCd = "A", .txZyNm = "B"})
+            Assert.Equal(ans4, "SELECT
+	T_摘要M.摘要CD,T_摘要M.摘要名
+FROM T_摘要M
+WHERE
+    T_摘要M.担当者CD like '%A%' AND
+    T_摘要M.摘要名 like '%B%'
+ORDER BY T_摘要M.摘要CD")
         End Sub
 
     End Class
