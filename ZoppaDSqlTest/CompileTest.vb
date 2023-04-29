@@ -261,6 +261,93 @@ WHERE
 ORDER BY T_摘要M.摘要CD")
         End Sub
 
+        <Fact>
+        Public Sub TrimTest3()
+            Dim query = "SELECT
+{if sel}
+	T_摘要M.摘要CD,T_摘要M.摘要名,T_摘要M.摘要No
+{else}
+	count(*) as cnt
+{end if}
+FROM T_摘要M
+{trim}
+WHERE
+    {if txZyCd <> ''}T_摘要M.担当者CD like '%!{txZyCd}%'{end if} AND
+    {if txZyNm <> ''}T_摘要M.摘要名 like '%!{txZyNm}%'{end if} AND
+    {if txZyNo <> ''}T_摘要M.摘要No like '%!{txZyNo}%'{end if}
+{end trim}
+{if sel}
+ORDER BY T_摘要M.摘要CD,T_摘要M.摘要No
+{end if}	
+"
+            Dim ans1 = query.Compile(New With {.sel = True, .txZyCd = "A", .txZyNm = "", .txZyNo = ""})
+            Assert.Equal(ans1, "SELECT
+	T_摘要M.摘要CD,T_摘要M.摘要名,T_摘要M.摘要No
+FROM T_摘要M
+WHERE
+    T_摘要M.担当者CD like '%A%'
+ORDER BY T_摘要M.摘要CD,T_摘要M.摘要No")
+
+            Dim ans2 = query.Compile(New With {.sel = True, .txZyCd = "", .txZyNm = "B", .txZyNo = ""})
+            Assert.Equal(ans2, "SELECT
+	T_摘要M.摘要CD,T_摘要M.摘要名,T_摘要M.摘要No
+FROM T_摘要M
+WHERE
+    T_摘要M.摘要名 like '%B%'
+ORDER BY T_摘要M.摘要CD,T_摘要M.摘要No")
+
+            Dim ans3 = query.Compile(New With {.sel = True, .txZyCd = "", .txZyNm = "", .txZyNo = "C"})
+            Assert.Equal(ans3, "SELECT
+	T_摘要M.摘要CD,T_摘要M.摘要名,T_摘要M.摘要No
+FROM T_摘要M
+WHERE
+    T_摘要M.摘要No like '%C%'
+ORDER BY T_摘要M.摘要CD,T_摘要M.摘要No")
+
+            Dim ans4 = query.Compile(New With {.sel = True, .txZyCd = "A", .txZyNm = "B", .txZyNo = ""})
+            Assert.Equal(ans4, "SELECT
+	T_摘要M.摘要CD,T_摘要M.摘要名,T_摘要M.摘要No
+FROM T_摘要M
+WHERE
+    T_摘要M.担当者CD like '%A%' AND
+    T_摘要M.摘要名 like '%B%'
+ORDER BY T_摘要M.摘要CD,T_摘要M.摘要No")
+
+            Dim ans5 = query.Compile(New With {.sel = True, .txZyCd = "A", .txZyNm = "", .txZyNo = "C"})
+            Assert.Equal(ans5, "SELECT
+	T_摘要M.摘要CD,T_摘要M.摘要名,T_摘要M.摘要No
+FROM T_摘要M
+WHERE
+    T_摘要M.担当者CD like '%A%' AND
+    T_摘要M.摘要No like '%C%'
+ORDER BY T_摘要M.摘要CD,T_摘要M.摘要No")
+
+            Dim ans6 = query.Compile(New With {.sel = True, .txZyCd = "", .txZyNm = "B", .txZyNo = "C"})
+            Assert.Equal(ans6, "SELECT
+	T_摘要M.摘要CD,T_摘要M.摘要名,T_摘要M.摘要No
+FROM T_摘要M
+WHERE
+    T_摘要M.摘要名 like '%B%' AND
+    T_摘要M.摘要No like '%C%'
+ORDER BY T_摘要M.摘要CD,T_摘要M.摘要No")
+
+            Dim ans7 = query.Compile(New With {.sel = True, .txZyCd = "A", .txZyNm = "B", .txZyNo = "C"})
+            Assert.Equal(ans7, "SELECT
+	T_摘要M.摘要CD,T_摘要M.摘要名,T_摘要M.摘要No
+FROM T_摘要M
+WHERE
+    T_摘要M.担当者CD like '%A%' AND
+    T_摘要M.摘要名 like '%B%' AND
+    T_摘要M.摘要No like '%C%'
+ORDER BY T_摘要M.摘要CD,T_摘要M.摘要No")
+
+            Dim ans8 = query.Compile(New With {.sel = True, .txZyCd = "", .txZyNm = "", .txZyNo = ""})
+            Assert.Equal(ans8, "SELECT
+	T_摘要M.摘要CD,T_摘要M.摘要名,T_摘要M.摘要No
+FROM T_摘要M
+ORDER BY T_摘要M.摘要CD,T_摘要M.摘要No")
+        End Sub
+
     End Class
 
 End Namespace
